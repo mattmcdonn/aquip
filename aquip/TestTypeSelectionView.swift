@@ -6,15 +6,20 @@ struct TestTypeSelectionView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Blue gradient header
-            VStack(alignment: .leading, spacing: 6) {
-                Text("AquaTest")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(.white)
-                Text("Professional Water Testing")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("aquip")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Water testing made easy")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
+                }
+
+                Spacer()
+
+                WeatherPillButton(testType: nil)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
             .padding(.top, 72)
             .padding(.bottom, 32)
@@ -31,9 +36,6 @@ struct TestTypeSelectionView: View {
 
             // Content area (white background)
             VStack(spacing: 24) {
-                // Weather disclaimer
-                WeatherDisclaimerView(testType: nil)
-
                 // Select Water Type label
                 VStack(spacing: 6) {
                     Text("Select Water Type")

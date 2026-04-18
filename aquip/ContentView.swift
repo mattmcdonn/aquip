@@ -15,9 +15,7 @@ struct ContentView: View {
                 case .history:
                     HistoryView()
                 case .test:
-                    TestTypeSelectionView(onSelect: { type in
-                        // Will handle navigation to test form later
-                    })
+                    TestTypeSelectionView(onSelect: { _ in })
                 case .settings:
                     SettingsView()
                 }
@@ -47,7 +45,7 @@ struct CustomTabBar: View {
                     Image(systemName: "clock.fill")
                         .font(.system(size: 26))
                     Text("History")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                 }
                 .foregroundStyle(selectedTab == .history ? activeColor : inactiveColor)
                 .frame(maxWidth: .infinity)
@@ -81,7 +79,7 @@ struct CustomTabBar: View {
                     .offset(y: -20)
 
                     Text("Test")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(selectedTab == .test ? activeColor : inactiveColor)
                 }
                 .frame(maxWidth: .infinity)
@@ -95,7 +93,7 @@ struct CustomTabBar: View {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 26))
                     Text("Settings")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                 }
                 .foregroundStyle(selectedTab == .settings ? activeColor : inactiveColor)
                 .frame(maxWidth: .infinity)
