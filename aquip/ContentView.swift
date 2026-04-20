@@ -15,7 +15,7 @@ struct ContentView: View {
                 case .history:
                     HistoryView()
                 case .test:
-                    TestTypeSelectionView(onSelect: { _ in })
+                    TestFlowView()
                 case .settings:
                     SettingsView()
                 }
@@ -76,7 +76,7 @@ struct CustomTabBar: View {
                             .foregroundStyle(.white)
                     }
                     .frame(height: 36)
-                    .offset(y: -20)
+                    .offset(y: -18)
 
                     Text("Test")
                         .font(.system(size: 14, weight: .medium))

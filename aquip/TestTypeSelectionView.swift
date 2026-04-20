@@ -8,10 +8,10 @@ struct TestTypeSelectionView: View {
             // Blue gradient header
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("aquip")
+                    Text("Testing")
                         .font(.system(size: 30, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("Water testing made easy")
+                    Text("Test your water")
                         .font(.system(size: 15))
                         .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
                 }
