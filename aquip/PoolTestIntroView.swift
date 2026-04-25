@@ -8,7 +8,7 @@ struct CarouselSlide {
     let step: String
 }
 
-private let carouselSlides: [CarouselSlide] = [
+private let poolCarouselSlides: [CarouselSlide] = [
     CarouselSlide(
         imageName: "aquip_test_tutorial_1",
         step: "Step 1: Collect a water sample from elbow-deep in your pool, away from returns and skimmers"
@@ -23,9 +23,25 @@ private let carouselSlides: [CarouselSlide] = [
     )
 ]
 
+private let spaCarouselSlides: [CarouselSlide] = [
+    CarouselSlide(
+        imageName: "aquip_test_tutorial_1",
+        step: "Step 1: Collect a water sample from your hot tub or spa, away from jets and filters"
+    ),
+    CarouselSlide(
+        imageName: "aquip_test_tutorial_2",
+        step: "Step 2: Dip your test strip into the water sample for 2–3 seconds"
+    ),
+    CarouselSlide(
+        imageName: "aquip_test_tutorial_3",
+        step: "Step 3: Remove the strip and wait 15 seconds, then compare colors to the chart on the bottle"
+    )
+]
+
 // MARK: - Carousel view
 
 struct InstructionsCarouselView: View {
+    let slides: [CarouselSlide]
     @Binding var currentIndex: Int
 
     // Auto-play timer ticks every second
@@ -37,8 +53,8 @@ struct InstructionsCarouselView: View {
     var body: some View {
         VStack(spacing: 16) {
             TabView(selection: $currentIndex) {
-                ForEach(carouselSlides.indices, id: \.self) { index in
-                    Image(carouselSlides[index].imageName)
+                ForEach(slides.indices, id: \.self) { index in
+                    Image(slides[index].imageName)
                         .resizable()
                         .scaledToFill()
                         .frame(maxWidth: .infinity)
@@ -66,13 +82,13 @@ struct InstructionsCarouselView: View {
                 if autoSeconds >= 4 {
                     autoSeconds = 0
                     withAnimation(.easeInOut(duration: 0.4)) {
-                        currentIndex = (currentIndex + 1) % carouselSlides.count
+                        currentIndex = (currentIndex + 1) % slides.count
                     }
                 }
             }
 
             // Step description below carousel
-            Text(carouselSlides[currentIndex].step)
+            Text(slides[currentIndex].step)
                 .font(.system(size: 15))
                 .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
                 .multilineTextAlignment(.center)
@@ -85,10 +101,23 @@ struct InstructionsCarouselView: View {
 // MARK: - Intro screen
 
 struct PoolTestIntroView: View {
+    var testType: WaterTestType
     var onContinue: () -> Void
     var onBack: () -> Void
 
     @State private var carouselIndex = 0
+
+    private var slides: [CarouselSlide] {
+        testType == .spa ? spaCarouselSlides : poolCarouselSlides
+    }
+
+    private var headerTitle: String {
+        testType == .spa ? "Hot Tub & Spa Testing" : "Pool Water Testing"
+    }
+
+    private var headerSubtitle: String {
+        testType == .spa ? "Follow these steps to test your spa water" : "Follow these steps to test your pool water"
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -108,10 +137,10 @@ struct PoolTestIntroView: View {
                     .buttonStyle(.plain)
                     .padding(.bottom, 14)
 
-                    Text("Pool Water Testing")
+                    Text(headerTitle)
                         .font(.system(size: 26, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("Follow these steps to test your pool water")
+                    Text(headerSubtitle)
                         .font(.system(size: 15))
                         .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
                         .padding(.top, 4)
@@ -138,7 +167,7 @@ struct PoolTestIntroView: View {
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
 
-                        InstructionsCarouselView(currentIndex: $carouselIndex)
+                        InstructionsCarouselView(slides: slides, currentIndex: $carouselIndex)
                     }
                     .padding(24)
                     .padding(.bottom, 110) // clears continue button + tab bar
