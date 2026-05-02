@@ -55,6 +55,79 @@ struct LimitReachedPopup: View {
     }
 }
 
+// MARK: - Delete confirm popup
+
+struct DeleteConfirmPopup: View {
+    @Binding var isPresented: Bool
+    var onConfirm: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 254/255, green: 226/255, blue: 226/255))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(Color(red: 220/255, green: 38/255, blue: 38/255))
+                }
+                .padding(.top, 28)
+                .padding(.bottom, 16)
+
+                Text("Delete Pool or Spa?")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+                    .padding(.bottom, 10)
+
+                Text("Are you sure you want to delete this? This action cannot be undone.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+
+                Divider()
+
+                HStack(spacing: 0) {
+                    Button {
+                        withAnimation(.easeIn(duration: 0.18)) { isPresented = false }
+                    } label: {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+
+                    Divider()
+                        .frame(height: 52)
+
+                    Button {
+                        withAnimation(.easeIn(duration: 0.18)) { isPresented = false }
+                        onConfirm()
+                    } label: {
+                        Text("Yes, Delete")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 220/255, green: 38/255, blue: 38/255))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
+            .padding(.horizontal, 40)
+        }
+    }
+}
+
 // MARK: - Detail info row
 
 private struct DetailInfoRow: View {
@@ -333,18 +406,38 @@ struct MyWaterBodiesView: View {
 
     private var mainList: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("My Pools & Spas")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(.white)
-                Text("Manage your water bodies")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
+            // Header
+            VStack(spacing: 0) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("My Pools & Spas")
+                            .font(.system(size: 30, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text("Manage your water bodies")
+                            .font(.system(size: 15))
+                            .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
+                    }
+                    Spacer()
+                    Button {
+                        if store.bodies.count >= 5 {
+                            withAnimation(.easeOut(duration: 0.2)) { showLimitAlert = true }
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.3)) { showingAddForm = true }
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.white.opacity(0.22))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 72)
+                .padding(.bottom, 32)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 72)
-            .padding(.bottom, 32)
             .background(
                 LinearGradient(
                     colors: [
@@ -356,56 +449,52 @@ struct MyWaterBodiesView: View {
                 )
             )
 
-            ScrollView {
-                VStack(spacing: 12) {
-                    if store.bodies.isEmpty {
-                        addButton
-                    } else {
+            if store.bodies.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
                         ForEach(store.bodies) { entry in
                             WaterBodyCard(waterBody: entry) {
                                 viewingBodyID = entry.id
                                 withAnimation(.easeInOut(duration: 0.3)) { showingDetail = true }
                             }
                         }
-                        addButton
                     }
+                    .padding(24)
+                    .padding(.bottom, 24)
                 }
-                .padding(24)
-                .padding(.bottom, 100)
+                .safeAreaInset(edge: .bottom) {
+                    Color.clear.frame(height: 90)
+                }
+                .background(Color(red: 249/255, green: 250/255, blue: 251/255))
             }
-            .background(Color(red: 249/255, green: 250/255, blue: 251/255))
         }
-        .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
     }
 
-    private var addButton: some View {
-        Button {
-            if store.bodies.count >= 5 {
-                withAnimation(.easeOut(duration: 0.2)) { showLimitAlert = true }
-            } else {
-                withAnimation(.easeInOut(duration: 0.3)) { showingAddForm = true }
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
-                Text("Add Pool or Spa")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
-                Spacer()
-            }
-            .padding(20)
-            .frame(maxWidth: .infinity)
-            .background(Color.white)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-                    .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255).opacity(0.4))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "drop.circle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                .frame(width: 88, height: 88)
+                .background(Color(red: 219/255, green: 234/255, blue: 254/255))
+                .clipShape(Circle())
+
+            Text("No Pools or Spas")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+
+            Text("You haven't added any pools or spas yet. Tap the + button in the top right corner to add your first one.")
+                .font(.system(size: 15))
+                .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 280)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
     }
 }
 
@@ -485,6 +574,7 @@ struct AddWaterBodyView: View {
     @State private var waterSource: String
     @State private var sanitizer: String
     @State private var showVolumeCalc = false
+    @State private var showDeleteConfirm = false
     @State private var keyboardHeight: CGFloat = 0
 
     init(existing: UserWaterBody? = nil, onDone: @escaping () -> Void, onDelete: (() -> Void)? = nil) {
@@ -540,8 +630,10 @@ struct AddWaterBodyView: View {
 
                         Spacer()
 
-                        if isEditing, let deleteAction = onDelete {
-                            Button(action: deleteAction) {
+                        if isEditing, let _ = onDelete {
+                            Button {
+                                withAnimation(.easeOut(duration: 0.2)) { showDeleteConfirm = true }
+                            } label: {
                                 Image(systemName: "trash")
                                     .font(.system(size: 15, weight: .medium))
                                     .foregroundStyle(.white)
@@ -800,7 +892,16 @@ struct AddWaterBodyView: View {
                 .padding(.bottom, 100)
             }
             .background(Color.white)
+
+            if showDeleteConfirm {
+                DeleteConfirmPopup(isPresented: $showDeleteConfirm) {
+                    onDelete?()
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                .zIndex(1)
+            }
         }
+        .animation(.easeOut(duration: 0.2), value: showDeleteConfirm)
         .fullScreenCover(isPresented: $showVolumeCalc) {
             PoolVolumeCalculatorCover(
                 isPresented: $showVolumeCalc,

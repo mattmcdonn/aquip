@@ -43,6 +43,8 @@ struct ContentView: View {
                     }
                 }
             )
+            .padding(.top, 18)
+            .background(Color.white.opacity(0.001))
 
             // Exit confirm popup when switching away from in-progress test
             if showTestExitConfirm {
@@ -115,8 +117,7 @@ struct CustomTabBar: View {
                             .font(.system(size: 24, weight: .medium))
                             .foregroundStyle(.white)
                     }
-                    .frame(height: 36)
-                    .offset(y: -18)
+                    .padding(.top, -18)
 
                     Text("Test")
                         .font(.system(size: 13, weight: .medium))
@@ -138,6 +139,7 @@ struct CustomTabBar: View {
                 .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -4)
                 .ignoresSafeArea(.all, edges: .bottom)
         )
+        .contentShape(Rectangle().inset(by: -20))
     }
 
     private func tabButton(icon: String, label: String, tab: Tab) -> some View {

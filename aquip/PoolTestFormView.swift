@@ -185,12 +185,13 @@ struct ExitTestConfirmPopup: View {
 struct SavePoolPopup: View {
     let testType: WaterTestType
     let store: WaterBodyStore
-    var onSaveNew: () -> Void
-    var onReplace: (UUID) -> Void
+    var onSaveNew: (String) -> Void
+    var onReplace: (UUID, String) -> Void
     var onDismiss: () -> Void
 
     @State private var showReplaceSelection = false
     @State private var selectedReplaceID = ""
+    @State private var newWaterBodyName = ""
 
     private var isAtLimit: Bool { store.bodies.count >= 5 }
     private var typeLabel: String { testType == .spa ? "spa" : "pool" }
@@ -240,6 +241,21 @@ struct SavePoolPopup: View {
                 .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+
+            // Name input
+            TextField("\(typeLabelCap) name (e.g. Backyard \(typeLabelCap))", text: $newWaterBodyName)
+                .font(.system(size: 16))
+                .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 13)
+                .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(red: 209/255, green: 213/255, blue: 219/255), lineWidth: 1.5)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 24)
                 .padding(.bottom, 24)
 
             Divider()
@@ -256,14 +272,19 @@ struct SavePoolPopup: View {
 
                 Divider().frame(height: 52)
 
-                Button(action: onSaveNew) {
+                Button { onSaveNew(newWaterBodyName.trimmingCharacters(in: .whitespaces)) } label: {
                     Text("Yes")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                        .foregroundStyle(
+                            newWaterBodyName.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? Color(red: 156/255, green: 163/255, blue: 175/255)
+                            : Color(red: 37/255, green: 99/255, blue: 235/255)
+                        )
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                 }
                 .buttonStyle(.plain)
+                .disabled(newWaterBodyName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .background(Color.white)
@@ -303,7 +324,7 @@ struct SavePoolPopup: View {
 
             HStack(spacing: 0) {
                 Button(action: onDismiss) {
-                    Text("Cancel")
+                    Text("No")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
                         .frame(maxWidth: .infinity)
@@ -376,7 +397,21 @@ struct SavePoolPopup: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 8)
+
+                // Name for the new pool/spa
+                TextField("\(typeLabelCap) name (e.g. Backyard \(typeLabelCap))", text: $newWaterBodyName)
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)
+                    .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color(red: 209/255, green: 213/255, blue: 219/255), lineWidth: 1.5)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 8)
             }
 
             Divider()
@@ -396,12 +431,12 @@ struct SavePoolPopup: View {
                 Button {
                     guard !selectedReplaceID.isEmpty,
                           let uuid = UUID(uuidString: selectedReplaceID) else { return }
-                    onReplace(uuid)
+                    onReplace(uuid, newWaterBodyName.trimmingCharacters(in: .whitespaces))
                 } label: {
                     Text("OK")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(
-                            selectedReplaceID.isEmpty
+                            (selectedReplaceID.isEmpty || newWaterBodyName.trimmingCharacters(in: .whitespaces).isEmpty)
                             ? Color(red: 156/255, green: 163/255, blue: 175/255)
                             : Color(red: 37/255, green: 99/255, blue: 235/255)
                         )
@@ -409,7 +444,7 @@ struct SavePoolPopup: View {
                         .padding(.vertical, 16)
                 }
                 .buttonStyle(.plain)
-                .disabled(selectedReplaceID.isEmpty)
+                .disabled(selectedReplaceID.isEmpty || newWaterBodyName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .background(Color.white)
@@ -443,7 +478,7 @@ struct PoolTestFormView: View {
             .map { (value: $0.id.uuidString, label: $0.name) }
     }
 
-    private var totalSteps: Int { formData.savedPool != "none" ? 5 : 7 }
+    private var totalSteps: Int { 7 }
 
     private var progress: Double { Double(currentStep) / Double(totalSteps) }
 
@@ -479,24 +514,9 @@ struct PoolTestFormView: View {
         return formData.volumeUnit == "liters" ? val : val * 3.78541
     }
 
-    private func generateWaterBodyName() -> String {
-        let typeStr = testType == .spa ? "spa" : "pool"
-        let existing = store.bodies.filter { $0.type == typeStr }
-        let base = testType == .spa ? "My Spa" : "My Pool"
-        if existing.isEmpty { return base }
-        let existingNames = Set(store.bodies.map { $0.name })
-        var counter = existing.count + 1
-        var candidate = "\(testType == .spa ? "Spa" : "Pool") \(counter)"
-        while existingNames.contains(candidate) {
-            counter += 1
-            candidate = "\(testType == .spa ? "Spa" : "Pool") \(counter)"
-        }
-        return candidate
-    }
-
-    private func saveNewWaterBody() {
+    private func saveNewWaterBody(name: String) {
         let body = UserWaterBody(
-            name: generateWaterBodyName(),
+            name: name,
             type: testType == .spa ? "spa" : "pool",
             volumeLiters: computedVolumeLiters,
             volumeUnit: formData.volumeUnit,
@@ -507,9 +527,9 @@ struct PoolTestFormView: View {
         store.add(body)
     }
 
-    private func replaceWaterBody(id: UUID) {
+    private func replaceWaterBody(id: UUID, name: String) {
         store.delete(id: id)
-        saveNewWaterBody()
+        saveNewWaterBody(name: name)
     }
 
     // MARK: - Navigation
@@ -695,13 +715,13 @@ struct PoolTestFormView: View {
                 SavePoolPopup(
                     testType: testType,
                     store: store,
-                    onSaveNew: {
-                        saveNewWaterBody()
+                    onSaveNew: { name in
+                        saveNewWaterBody(name: name)
                         withAnimation(.easeIn(duration: 0.18)) { showSavePopup = false }
                         advanceStep()
                     },
-                    onReplace: { uuid in
-                        replaceWaterBody(id: uuid)
+                    onReplace: { uuid, name in
+                        replaceWaterBody(id: uuid, name: name)
                         withAnimation(.easeIn(duration: 0.18)) { showSavePopup = false }
                         advanceStep()
                     },
