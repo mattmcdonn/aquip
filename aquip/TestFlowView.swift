@@ -9,6 +9,7 @@ enum TestFlowStep {
     case typeSelection
     case poolInstructions
     case poolDataCollection
+    case poolResults
     case spaInstructions
     case spaDataCollection
 }
@@ -19,6 +20,7 @@ struct TestFlowView: View {
 
     @State private var step: TestFlowStep = .typeSelection
     @State private var navigatingForward = true
+    @State private var poolFormData: PoolFormData? = nil
 
     private var transition: AnyTransition {
         navigatingForward
@@ -31,7 +33,7 @@ struct TestFlowView: View {
         withAnimation(.easeInOut(duration: 0.3)) {
             step = newStep
         }
-        let inForm = (newStep == .poolDataCollection || newStep == .spaDataCollection)
+        let inForm = (newStep == .poolDataCollection || newStep == .spaDataCollection || newStep == .poolResults)
         isInQuestionnaire = inForm
     }
 
@@ -59,10 +61,22 @@ struct TestFlowView: View {
             case .poolDataCollection:
                 PoolTestFormView(
                     testType: .pool,
-                    onCancel:   { navigate(to: .typeSelection, forward: false) },
-                    onComplete: { _ in /* results wired up later */ }
+                    onCancel: { navigate(to: .typeSelection, forward: false) },
+                    onComplete: { data in
+                        poolFormData = data
+                        navigate(to: .poolResults, forward: true)
+                    }
                 )
                 .transition(transition)
+
+            case .poolResults:
+                if let data = poolFormData {
+                    PoolTestResultsView(
+                        formData: data,
+                        onDone: { navigate(to: .typeSelection, forward: false) }
+                    )
+                    .transition(transition)
+                }
 
             case .spaInstructions:
                 PoolTestIntroView(

@@ -2,6 +2,21 @@ import SwiftUI
 
 // MARK: - Form data model
 
+private enum PoolFormStep {
+    case savedConfig
+    case details
+    case sanitizer
+    case waterTemperature
+    case maintenance
+    case recentlyShocked
+    case waterAppearance
+    case algae
+    case higherUsage
+    case directSunlight
+    case circulation
+    case chemicalReadings
+}
+
 struct PoolFormData {
     var savedPool: String = "none"
     var volumeUnit: String = "gallons"
@@ -13,7 +28,14 @@ struct PoolFormData {
     var tempUnit: String = "fahrenheit"
     var recentlyOpened: String = ""
     var waterChangeAge: String = ""
+    var recentlyShocked: String = ""
     var waterColor: String = ""
+    var algaeType: String = ""
+    var higherUsage: String = ""
+    var directSunlight: String = ""
+    var hasCirculation: String = ""
+    var pumpRunFrequency: String = ""
+    var hasLowSaltGenerator: String = ""
     var freeChlorine: String = ""
     var totalChlorine: String = ""
     var saltLevel: String = ""
@@ -21,6 +43,10 @@ struct PoolFormData {
     var alkalinity: String = ""
     var cyanuricAcid: String = ""
     var calciumHardness: String = ""
+    var phosphates: String = ""
+    var copper: String = ""
+    var iron: String = ""
+    var magnesium: String = ""
 }
 
 // MARK: - Reusable form components
@@ -478,28 +504,88 @@ struct PoolTestFormView: View {
             .map { (value: $0.id.uuidString, label: $0.name) }
     }
 
-    private var totalSteps: Int { 7 }
+    private var activeSteps: [PoolFormStep] {
+        if testType == .pool {
+            return [
+                .savedConfig,
+                .details,
+                .sanitizer,
+                .waterTemperature,
+                .maintenance,
+                .recentlyShocked,
+                .waterAppearance,
+                .algae,
+                .higherUsage,
+                .directSunlight,
+                .circulation,
+                .chemicalReadings
+            ]
+        }
+
+        return [
+            .savedConfig,
+            .details,
+            .sanitizer,
+            .waterTemperature,
+            .maintenance,
+            .recentlyShocked,
+            .waterAppearance,
+            .higherUsage,
+            .directSunlight,
+            .chemicalReadings
+        ]
+    }
+
+    private var totalSteps: Int { activeSteps.count }
+
+    private var currentFormStep: PoolFormStep {
+        activeSteps[currentStep - 1]
+    }
 
     private var progress: Double { Double(currentStep) / Double(totalSteps) }
 
     private var canContinue: Bool {
-        switch currentStep {
-        case 1: return !formData.savedPool.isEmpty
-        case 2:
+        switch currentFormStep {
+        case .savedConfig:
+            return !formData.savedPool.isEmpty
+        case .details:
             let base = !formData.volumeUnit.isEmpty && !formData.volume.isEmpty
-                        && !formData.waterSource.isEmpty
+                && !formData.waterSource.isEmpty
             return testType == .spa ? base : base && !formData.hasHeater.isEmpty
-        case 3: return !formData.sanitizer.isEmpty
-        case 4: return !formData.waterTemp.isEmpty
-        case 5:
+        case .sanitizer:
+            guard !formData.sanitizer.isEmpty else { return false }
+            if formData.sanitizer == "salt" {
+                return !formData.hasLowSaltGenerator.isEmpty
+            }
+            return true
+        case .waterTemperature:
+            return !formData.waterTemp.isEmpty
+        case .maintenance:
             return testType == .spa
                 ? !formData.waterChangeAge.isEmpty
                 : !formData.recentlyOpened.isEmpty
-        case 6: return !formData.waterColor.isEmpty
-        case 7: return !formData.freeChlorine.isEmpty && !formData.totalChlorine.isEmpty
-                     && !formData.pH.isEmpty && !formData.alkalinity.isEmpty
-                     && !formData.cyanuricAcid.isEmpty && !formData.calciumHardness.isEmpty
-        default: return false
+        case .recentlyShocked:
+            return !formData.recentlyShocked.isEmpty
+        case .waterAppearance:
+            return !formData.waterColor.isEmpty
+        case .algae:
+            return !formData.algaeType.isEmpty
+        case .higherUsage:
+            return !formData.higherUsage.isEmpty
+        case .directSunlight:
+            return !formData.directSunlight.isEmpty
+        case .circulation:
+            guard !formData.hasCirculation.isEmpty else { return false }
+            if formData.hasCirculation == "no" {
+                return true
+            }
+            return !formData.pumpRunFrequency.isEmpty && formData.pumpRunFrequency != "not_applicable"
+        case .chemicalReadings:
+            return !formData.freeChlorine.isEmpty && !formData.totalChlorine.isEmpty
+                && !formData.pH.isEmpty && !formData.alkalinity.isEmpty
+                && !formData.cyanuricAcid.isEmpty && !formData.calciumHardness.isEmpty
+                && !formData.phosphates.isEmpty && !formData.copper.isEmpty
+                && !formData.iron.isEmpty && !formData.magnesium.isEmpty
         }
     }
 
@@ -539,8 +625,8 @@ struct PoolTestFormView: View {
             onComplete(formData)
             return
         }
-        // After step 3 in the new pool/spa flow, offer to save
-        if currentStep == 3 && formData.savedPool == "none" {
+        // After sanitizer selection, offer to save for new configurations.
+        if currentFormStep == .sanitizer && formData.savedPool == "none" {
             showSavePopup = true
             return
         }
@@ -550,8 +636,10 @@ struct PoolTestFormView: View {
     private func advanceStep() {
         stepForward = true
         withAnimation(.easeInOut(duration: 0.28)) {
-            if currentStep == 1 && formData.savedPool != "none" {
-                currentStep = 4
+            if currentFormStep == .savedConfig && formData.savedPool != "none" {
+                if let jumpIndex = activeSteps.firstIndex(of: .waterTemperature) {
+                    currentStep = jumpIndex + 1
+                }
             } else {
                 currentStep += 1
             }
@@ -561,7 +649,7 @@ struct PoolTestFormView: View {
     private func handleBack() {
         stepForward = false
         withAnimation(.easeInOut(duration: 0.28)) {
-            if currentStep == 4 && formData.savedPool != "none" {
+            if currentFormStep == .waterTemperature && formData.savedPool != "none" {
                 currentStep = 1
             } else {
                 currentStep -= 1
@@ -650,7 +738,7 @@ struct PoolTestFormView: View {
                 // Step content, scrollable
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        stepContent(for: currentStep)
+                        stepContent(for: currentFormStep)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(24)
@@ -766,21 +854,25 @@ struct PoolTestFormView: View {
     // MARK: - Step content
 
     @ViewBuilder
-    private func stepContent(for step: Int) -> some View {
+    private func stepContent(for step: PoolFormStep) -> some View {
         switch step {
-        case 1: step1
-        case 2: step2
-        case 3: step3
-        case 4: step4
-        case 5: step5
-        case 6: step6
-        case 7: step7
-        default: EmptyView()
+        case .savedConfig: stepSavedConfig
+        case .details: stepDetails
+        case .sanitizer: stepSanitizer
+        case .waterTemperature: stepWaterTemperature
+        case .maintenance: stepMaintenance
+        case .recentlyShocked: stepRecentlyShocked
+        case .waterAppearance: stepWaterAppearance
+        case .algae: stepAlgae
+        case .higherUsage: stepHigherUsage
+        case .directSunlight: stepDirectSunlight
+        case .circulation: stepCirculation
+        case .chemicalReadings: stepChemicalReadings
         }
     }
 
     // Step 1: Saved pool / spa
-    @ViewBuilder private var step1: some View {
+    @ViewBuilder private var stepSavedConfig: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text(testType == .spa ? "Select Your Spa Configuration" : "Select Your Pool Configuration")
                 .font(.system(size: 20, weight: .semibold))
@@ -798,7 +890,7 @@ struct PoolTestFormView: View {
     }
 
     // Step 2: Pool / spa details
-    @ViewBuilder private var step2: some View {
+    @ViewBuilder private var stepDetails: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .firstTextBaseline) {
                 Text(testType == .spa ? "Spa Details" : "Pool Details")
@@ -860,7 +952,7 @@ struct PoolTestFormView: View {
     }
 
     // Step 3: Sanitizer
-    @ViewBuilder private var step3: some View {
+    @ViewBuilder private var stepSanitizer: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Water Sanitizer")
                 .font(.system(size: 20, weight: .semibold))
@@ -917,11 +1009,62 @@ struct PoolTestFormView: View {
                     .animation(.easeInOut(duration: 0.15), value: isSelected)
                 }
             }
+
+            if formData.sanitizer == "salt" {
+                VStack(alignment: .leading, spacing: 14) {
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    Text("Salt Generator Type")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+                    Text("Do you have a low-salt generator?")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+
+                    HStack(spacing: 12) {
+                        ForEach([("yes", "Yes"), ("no", "No — Standard")], id: \.0) { value, label in
+                            let isSelected = formData.hasLowSaltGenerator == value
+                            Button {
+                                formData.hasLowSaltGenerator = value
+                            } label: {
+                                Text(label)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(
+                                        isSelected
+                                            ? Color(red: 8/255, green: 145/255, blue: 178/255)
+                                            : Color(red: 55/255, green: 65/255, blue: 81/255)
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(
+                                        isSelected
+                                            ? Color(red: 207/255, green: 250/255, blue: 254/255)
+                                            : Color.white
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .stroke(
+                                                isSelected
+                                                    ? Color(red: 8/255, green: 145/255, blue: 178/255)
+                                                    : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                                lineWidth: isSelected ? 2 : 1
+                                            )
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                            .buttonStyle(.plain)
+                            .animation(.easeInOut(duration: 0.15), value: isSelected)
+                        }
+                    }
+                }
+            }
         }
     }
 
     // Step 4: Water temperature
-    @ViewBuilder private var step4: some View {
+    @ViewBuilder private var stepWaterTemperature: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Water Temperature")
                 .font(.system(size: 20, weight: .semibold))
@@ -979,7 +1122,7 @@ struct PoolTestFormView: View {
     }
 
     // Step 5: Pool status / spa maintenance
-    @ViewBuilder private var step5: some View {
+    @ViewBuilder private var stepMaintenance: some View {
         if testType == .spa {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Spa Maintenance")
@@ -1046,8 +1189,55 @@ struct PoolTestFormView: View {
         }
     }
 
+    // Step: Recently shocked
+    @ViewBuilder private var stepRecentlyShocked: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Recent Shocking")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+            Text(testType == .spa
+                 ? "Have you shocked your spa within the last 24 hours?"
+                 : "Have you shocked your pool within the last 24 hours?")
+                .font(.system(size: 15))
+                .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
+
+            HStack(spacing: 12) {
+                ForEach([("yes", "Yes"), ("no", "No")], id: \.0) { value, label in
+                    let isSelected = formData.recentlyShocked == value
+                    Button {
+                        formData.recentlyShocked = value
+                    } label: {
+                        Text(label)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(
+                                isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                : Color(red: 55/255, green: 65/255, blue: 81/255)
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(
+                                isSelected ? Color(red: 239/255, green: 246/255, blue: 255/255) : Color.white
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(
+                                        isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                        : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                        lineWidth: isSelected ? 2 : 1
+                                    )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.15), value: isSelected)
+                }
+            }
+        }
+    }
+
     // Step 6: Water color
-    @ViewBuilder private var step6: some View {
+    @ViewBuilder private var stepWaterAppearance: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Water Appearance")
                 .font(.system(size: 20, weight: .semibold))
@@ -1111,8 +1301,231 @@ struct PoolTestFormView: View {
         }
     }
 
-    // Step 7: Chemical readings
-    @ViewBuilder private var step7: some View {
+    // Step 7 (pool only): Algae type
+    @ViewBuilder private var stepAlgae: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Algae Check")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+            Text("Do you notice any algae in the pool?")
+                .font(.system(size: 15))
+                .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
+
+            let algaeOptions: [(value: String, label: String, color: Color)] = [
+                ("green", "Green Algae", Color(red: 34/255, green: 197/255, blue: 94/255)),
+                ("black", "Black Algae", Color(red: 31/255, green: 41/255, blue: 55/255)),
+                ("pink", "Pink Algae", Color(red: 244/255, green: 114/255, blue: 182/255)),
+                ("mustard", "Mustard Algae", Color(red: 234/255, green: 179/255, blue: 8/255)),
+                ("white", "White Algae", Color(red: 229/255, green: 231/255, blue: 235/255)),
+                ("invisible", "Invisible Algae", Color(red: 147/255, green: 197/255, blue: 253/255))
+            ]
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(algaeOptions, id: \.value) { option in
+                    let isSelected = formData.algaeType == option.value
+                    Button {
+                        formData.algaeType = option.value
+                    } label: {
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(option.color)
+                                .frame(width: 16, height: 16)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white, lineWidth: isSelected ? 2 : 0)
+                                )
+                                .shadow(color: option.color.opacity(0.35), radius: 3, x: 0, y: 1)
+
+                            Text(option.label)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(
+                                    isSelected ? Color(red: 17/255, green: 24/255, blue: 39/255)
+                                    : Color(red: 55/255, green: 65/255, blue: 81/255)
+                                )
+                                .multilineTextAlignment(.leading)
+
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 16)
+                        .background(isSelected ? Color(red: 239/255, green: 246/255, blue: 255/255) : Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(
+                                    isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                    : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                    lineWidth: isSelected ? 2 : 1
+                                )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.15), value: isSelected)
+                }
+            }
+        }
+    }
+
+    // Step 8: Higher usage
+    @ViewBuilder private var stepHigherUsage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Usage Check")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+            Text(testType == .spa ? "Has there been higher spa usage recently?" : "Has there been higher pool usage recently?")
+                .font(.system(size: 15))
+                .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
+
+            HStack(spacing: 12) {
+                ForEach([("yes", "Yes"), ("no", "No")], id: \.0) { value, label in
+                    let isSelected = formData.higherUsage == value
+                    Button {
+                        formData.higherUsage = value
+                    } label: {
+                        Text(label)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(
+                                isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                : Color(red: 55/255, green: 65/255, blue: 81/255)
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(
+                                isSelected ? Color(red: 239/255, green: 246/255, blue: 255/255) : Color.white
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(
+                                        isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                        : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                        lineWidth: isSelected ? 2 : 1
+                                    )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.15), value: isSelected)
+                }
+            }
+        }
+    }
+
+    // Step 9: Direct sunlight
+    @ViewBuilder private var stepDirectSunlight: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Sunlight Exposure")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+            Text(testType == .spa ? "Does your spa get direct sunlight throughout the day?" : "Does your pool get direct sunlight throughout the day?")
+                .font(.system(size: 15))
+                .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
+
+            HStack(spacing: 12) {
+                ForEach([("yes", "Yes"), ("no", "No")], id: \.0) { value, label in
+                    let isSelected = formData.directSunlight == value
+                    Button {
+                        formData.directSunlight = value
+                    } label: {
+                        Text(label)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(
+                                isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                : Color(red: 55/255, green: 65/255, blue: 81/255)
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(
+                                isSelected ? Color(red: 239/255, green: 246/255, blue: 255/255) : Color.white
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(
+                                        isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                        : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                        lineWidth: isSelected ? 2 : 1
+                                    )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.15), value: isSelected)
+                }
+            }
+        }
+    }
+
+    // Step 10 (pool only): Circulation and pump runtime
+    @ViewBuilder private var stepCirculation: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Circulation")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+            Text("Does your pool get circulation with jets and a pump?")
+                .font(.system(size: 15))
+                .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
+
+            HStack(spacing: 12) {
+                ForEach([("yes", "Yes"), ("no", "No")], id: \.0) { value, label in
+                    let isSelected = formData.hasCirculation == value
+                    Button {
+                        formData.hasCirculation = value
+                        if value == "no" {
+                            formData.pumpRunFrequency = "not_applicable"
+                        } else if formData.pumpRunFrequency == "not_applicable" {
+                            formData.pumpRunFrequency = ""
+                        }
+                    } label: {
+                        Text(label)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(
+                                isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                : Color(red: 55/255, green: 65/255, blue: 81/255)
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(
+                                isSelected ? Color(red: 239/255, green: 246/255, blue: 255/255) : Color.white
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(
+                                        isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                        : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                        lineWidth: isSelected ? 2 : 1
+                                    )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.15), value: isSelected)
+                }
+            }
+
+            if formData.hasCirculation == "yes" {
+                FormMenuPicker(
+                    label: "How often does the pump run?",
+                    placeholder: "Select runtime",
+                    selection: $formData.pumpRunFrequency,
+                    options: [
+                        ("24_hours", "24 hours/day"),
+                        ("12_plus", "12+ hours/day"),
+                        ("8_12", "8-12 hours/day"),
+                        ("4_8", "4-8 hours/day"),
+                        ("under_4", "Less than 4 hours/day"),
+                        ("rarely", "Rarely / only when needed")
+                    ]
+                )
+            }
+        }
+    }
+
+    // Final step: Chemical readings
+    @ViewBuilder private var stepChemicalReadings: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Enter Test Strip Readings")
                 .font(.system(size: 20, weight: .semibold))
@@ -1129,6 +1542,10 @@ struct PoolTestFormView: View {
             FormNumberInput(label: "Total Alkalinity", placeholder: "0", unit: "ppm", value: $formData.alkalinity)
             FormNumberInput(label: "Cyanuric Acid / Stabilizer", placeholder: "0", unit: "ppm", value: $formData.cyanuricAcid)
             FormNumberInput(label: "Calcium Hardness", placeholder: "0", unit: "ppm", value: $formData.calciumHardness)
+            FormNumberInput(label: "Phosphates", placeholder: "0", unit: "ppb", value: $formData.phosphates)
+            FormNumberInput(label: "Copper", placeholder: "0.0", unit: "ppm", value: $formData.copper)
+            FormNumberInput(label: "Iron", placeholder: "0.0", unit: "ppm", value: $formData.iron)
+            FormNumberInput(label: "Magnesium", placeholder: "0.0", unit: "ppm", value: $formData.magnesium)
         }
     }
 }
