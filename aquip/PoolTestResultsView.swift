@@ -1,59 +1,5 @@
 import SwiftUI
 
-// MARK: - Colour palette helpers (scoped to this file)
-
-private extension ChemistryLevel {
-    var cardBg: Color {
-        switch self {
-        case .ok:   return Color(red: 240/255, green: 253/255, blue: 244/255)
-        case .low:  return Color(red: 255/255, green: 251/255, blue: 235/255)
-        case .high: return Color(red: 255/255, green: 241/255, blue: 242/255)
-        }
-    }
-    var cardBorder: Color {
-        switch self {
-        case .ok:   return Color(red: 134/255, green: 239/255, blue: 172/255)
-        case .low:  return Color(red: 252/255, green: 211/255, blue: 77/255)
-        case .high: return Color(red: 252/255, green: 165/255, blue: 165/255)
-        }
-    }
-    var titleColor: Color {
-        switch self {
-        case .ok:   return Color(red: 20/255, green: 83/255, blue: 45/255)
-        case .low:  return Color(red: 120/255, green: 53/255, blue: 15/255)
-        case .high: return Color(red: 127/255, green: 29/255, blue: 29/255)
-        }
-    }
-    var bodyColor: Color {
-        switch self {
-        case .ok:   return Color(red: 22/255, green: 101/255, blue: 52/255)
-        case .low:  return Color(red: 146/255, green: 64/255, blue: 14/255)
-        case .high: return Color(red: 153/255, green: 27/255, blue: 27/255)
-        }
-    }
-    var pillBg: Color {
-        switch self {
-        case .ok:   return Color(red: 220/255, green: 252/255, blue: 231/255)
-        case .low:  return Color(red: 254/255, green: 243/255, blue: 199/255)
-        case .high: return Color(red: 254/255, green: 226/255, blue: 226/255)
-        }
-    }
-    var pillText: Color {
-        switch self {
-        case .ok:   return Color(red: 22/255, green: 101/255, blue: 52/255)
-        case .low:  return Color(red: 120/255, green: 53/255, blue: 15/255)
-        case .high: return Color(red: 153/255, green: 27/255, blue: 27/255)
-        }
-    }
-    var statusLabel: String {
-        switch self {
-        case .ok:   return "OK"
-        case .low:  return "LOW"
-        case .high: return "HIGH"
-        }
-    }
-}
-
 // MARK: - Summary card
 
 private struct SummaryCard: View {
@@ -75,10 +21,25 @@ private struct SummaryCard: View {
     }
 
     var body: some View {
-        let level: ChemistryLevel = issueCount == 0 ? .ok : .low
-        let iconColor: Color = issueCount == 0
+        let allClear = issueCount == 0
+        let iconColor: Color = allClear
             ? Color(red: 22/255, green: 163/255, blue: 74/255)
             : Color(red: 217/255, green: 119/255, blue: 6/255)
+        let iconBg: Color = allClear
+            ? Color(red: 220/255, green: 252/255, blue: 231/255)
+            : Color(red: 254/255, green: 243/255, blue: 199/255)
+        let titleColor: Color = allClear
+            ? Color(red: 20/255, green: 83/255, blue: 45/255)
+            : Color(red: 120/255, green: 53/255, blue: 15/255)
+        let bodyColor: Color = allClear
+            ? Color(red: 22/255, green: 101/255, blue: 52/255)
+            : Color(red: 146/255, green: 64/255, blue: 14/255)
+        let cardBg: Color = allClear
+            ? Color(red: 240/255, green: 253/255, blue: 244/255)
+            : Color(red: 255/255, green: 251/255, blue: 235/255)
+        let cardBorder: Color = allClear
+            ? Color(red: 134/255, green: 239/255, blue: 172/255)
+            : Color(red: 252/255, green: 211/255, blue: 77/255)
 
         HStack(spacing: 14) {
             // Pulsing icon
@@ -90,266 +51,173 @@ private struct SummaryCard: View {
                         .scaleEffect(pulse ? 1.45 : 1.0)
                         .animation(.easeOut(duration: 1.0).delay(Double(i) * 0.15), value: pulse)
                 }
-                Image(systemName: issueCount == 0 ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                Image(systemName: allClear ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                     .font(.system(size: 20))
                     .foregroundStyle(iconColor)
                     .frame(width: 40, height: 40)
-                    .background(level.pillBg)
+                    .background(iconBg)
                     .clipShape(Circle())
             }
             .onAppear { schedulePulse() }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(issueCount == 0 ? "Water Looks Good" : "\(issueCount) Issue\(issueCount == 1 ? "" : "s") Found")
+                Text(allClear ? "Water Looks Good" : "\(issueCount) Issue\(issueCount == 1 ? "" : "s") Found")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(level.titleColor)
-                Text(issueCount == 0
+                    .foregroundStyle(titleColor)
+                Text(allClear
                     ? "All checked parameters are within the acceptable range."
                     : "One or more parameters need attention. Review the details below.")
                     .font(.system(size: 13))
-                    .foregroundStyle(level.bodyColor)
+                    .foregroundStyle(bodyColor)
                     .lineSpacing(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
-        .background(level.cardBg)
+        .background(cardBg)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(level.cardBorder, lineWidth: 2)
+                .stroke(cardBorder, lineWidth: 2)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
-// MARK: - Issue pill
+// MARK: - Animated column bar
 
-private struct IssuePill: View {
-    let issue: ChemistryIssue
-    let accentColor: Color
-    let pillBg: Color
-    let pillText: Color
+private struct ColumnBar: View {
+    let level: ChemistryLevel
+    let chartHeight: CGFloat
+    let idealFraction: CGFloat
+    let delay: Double
 
-    var body: some View {
-        Text(issue.label)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(pillText)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(pillBg)
-            .overlay(
-                Capsule()
-                    .stroke(accentColor, lineWidth: 1)
-            )
-            .clipShape(Capsule())
-    }
-}
+    @State private var animated = false
 
-// MARK: - Pill flow layout (Layout protocol — self-sizes correctly)
-
-private struct PillFlowLayout: Layout {
-    var hSpacing: CGFloat = 8
-    var vSpacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = computeRows(availableWidth: proposal.width ?? .infinity, subviews: subviews)
-        guard !rows.isEmpty else { return .zero }
-        let totalHeight = rows.reduce(0.0) { acc, row in
-            acc + (row.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0)
-        } + CGFloat(rows.count - 1) * vSpacing
-        return CGSize(width: proposal.width ?? 0, height: totalHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let rows = computeRows(availableWidth: bounds.width, subviews: subviews)
-        var y = bounds.minY
-        for row in rows {
-            var x = bounds.minX
-            let rowH = row.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
-            for subview in row {
-                let sz = subview.sizeThatFits(.unspecified)
-                subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(sz))
-                x += sz.width + hSpacing
-            }
-            y += rowH + vSpacing
+    private var targetFraction: CGFloat {
+        switch level {
+        case .low:  return idealFraction * 0.50
+        case .ok:   return idealFraction
+        case .high: return idealFraction + (1 - idealFraction) * 0.78
         }
     }
 
-    private func computeRows(availableWidth: CGFloat, subviews: Subviews) -> [[LayoutSubview]] {
-        var rows: [[LayoutSubview]] = [[]]
-        var rowWidth: CGFloat = 0
-        for subview in subviews {
-            let w = subview.sizeThatFits(.unspecified).width
-            if !rows[rows.count - 1].isEmpty && rowWidth + hSpacing + w > availableWidth {
-                rows.append([subview])
-                rowWidth = w
-            } else {
-                rows[rows.count - 1].append(subview)
-                rowWidth += (rows[rows.count - 1].count == 1 ? 0 : hSpacing) + w
-            }
-        }
-        return rows.filter { !$0.isEmpty }
-    }
-}
-
-// MARK: - Individual parameter card
-
-private struct ChemistryResultCard: View {
-    let parameterName: String
-    let unitLabel: String
-    let enteredValue: String
-    let result: ParameterResult
-
-    @State private var isExpanded = false
-
-    private func bodyText() -> String {
-        switch result.level {
-        case .ok:
-            switch parameterName {
-            case "Free Chlorine":
-                return "Free chlorine is within the ideal range of 1.0–5.0 ppm."
-            case "Combined Chlorine":
-                return "Combined chlorine is within the acceptable range (≤0.5 ppm). Your water is well sanitised."
-            case "pH":
-                return "pH is within the ideal range of 7.2–7.8."
-            case "Stabilizer (CYA)":
-                return "Stabilizer (cyanuric acid) is within the ideal range."
-            case "Phosphates":
-                return "Phosphate levels are within the acceptable range (0–500 ppb)."
-            case "Calcium Hardness":
-                return "Calcium hardness is within the ideal range of 200–500 ppm."
-            case "Copper":
-                return "Copper levels are within the acceptable range (≤0.2 ppm)."
-            case "Iron":
-                return "Iron levels are within the acceptable range (≤0.1 ppm)."
-            case "Magnesium":
-                return "Magnesium levels are within the acceptable range (≤50 ppm)."
-            default:
-                return "\(parameterName) is within the acceptable range."
-            }
-        case .low:
-            switch parameterName {
-            case "Free Chlorine":
-                return "Chlorine levels are low. Address the potential causes below to bring them back into range."
-            case "pH":
-                return "pH is low (below 7.2). Low pH can corrode pool equipment and irritate swimmers. Review the potential causes below."
-            case "Alkalinity":
-                return "Total alkalinity is low (below 80 ppm). Low alkalinity causes pH to fluctuate wildly. Review the potential causes below."
-            case "Stabilizer (CYA)":
-                return "Stabilizer is low. Low CYA means chlorine is consumed too quickly by sunlight. Review the potential causes below."
-            case "Calcium Hardness":
-                return "Calcium hardness is low (below 200 ppm). Low calcium can cause corrosion of pool surfaces and equipment. Review the potential causes below."
-            default:
-                return "\(parameterName) is below the recommended range."
-            }
-        case .high:
-            switch parameterName {
-            case "Free Chlorine":
-                return "Chlorine levels are high. Review the potential causes below."
-            case "Combined Chlorine":
-                return "Combined chlorine is above 0.5 ppm, indicating chloramines are present. These reduce sanitisation effectiveness and cause irritation. Shocking the pool is the primary remedy. Review the potential causes below."
-            case "pH":
-                return "pH is high (above 7.8). High pH reduces chlorine effectiveness and can cause scale buildup. Review the potential causes below."
-            case "Alkalinity":
-                return "Total alkalinity is high (above 120 ppm). High alkalinity makes it difficult to adjust pH. Review the potential causes below."
-            case "Stabilizer (CYA)":
-                return "Stabilizer is high. Excess CYA causes \"chlorine lock\" reducing sanitisation effectiveness. Review the potential causes below."
-            case "Phosphates":
-                return "Phosphate levels are high (above 500 ppb). Phosphates feed algae growth and reduce chlorine efficiency. Review the potential causes below."
-            case "Calcium Hardness":
-                return "Calcium hardness is high (above 500 ppm). High calcium leads to cloudy water and scale buildup. Review the potential causes below."
-            case "Copper":
-                return "Copper levels are elevated (above 0.2 ppm). High copper can stain pool surfaces and turn hair green. Review the potential causes below."
-            case "Iron":
-                return "Iron levels are elevated (above 0.1 ppm). High iron causes brown or rust-coloured staining. Review the potential causes below."
-            case "Magnesium":
-                return "Magnesium levels are elevated (above 50 ppm). This can cause water cloudiness and scale. Review the potential causes below."
-            default:
-                return "\(parameterName) is above the recommended range."
-            }
-        }
+    private var barGradient: LinearGradient {
+        level == .ok
+            ? LinearGradient(
+                colors: [Color(red: 74/255,  green: 222/255, blue: 128/255),
+                         Color(red: 22/255,  green: 163/255, blue: 74/255)],
+                startPoint: .top, endPoint: .bottom
+              )
+            : LinearGradient(
+                colors: [Color(red: 253/255, green: 224/255, blue: 71/255),
+                         Color(red: 245/255, green: 158/255, blue: 11/255)],
+                startPoint: .top, endPoint: .bottom
+              )
     }
 
     var body: some View {
-        let level = result.level
-        VStack(alignment: .leading, spacing: 0) {
-            // ── Always-visible header row ──
-            HStack(spacing: 10) {
-                Text(parameterName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(level.titleColor)
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            RoundedRectangle(cornerRadius: 5)
+                .fill(barGradient)
+                .frame(height: chartHeight * (animated ? targetFraction : 0))
+                .animation(
+                    .spring(response: 0.65, dampingFraction: 0.72).delay(delay),
+                    value: animated
+                )
+        }
+        .frame(maxWidth: .infinity, maxHeight: chartHeight)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                animated = true
+            }
+        }
+    }
+}
 
+// MARK: - Parameter column chart
+
+private struct ParameterColumnChart: View {
+
+    struct Entry {
+        let shortName: String
+        let level: ChemistryLevel
+        let delay: Double
+    }
+
+    let entries: [Entry]
+    private let chartHeight: CGFloat = 144
+    private let idealFraction: CGFloat = 0.54
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // ── Legend ──
+            HStack(spacing: 5) {
                 Spacer()
-
-                // Value badge
-                Text("\(enteredValue) \(unitLabel)")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(level.bodyColor)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.7))
-                    .overlay(Capsule().stroke(level.cardBorder, lineWidth: 1))
-                    .clipShape(Capsule())
-
-                // Status pill
-                Text(level.statusLabel)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(level.pillText)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(level.pillBg)
-                    .clipShape(Capsule())
-
-                // Expand chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(level.titleColor.opacity(0.7))
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isExpanded)
-            }
-
-            // ── Expandable body ──
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 12) {
-                    Divider()
-                        .padding(.top, 12)
-
-                    Text(bodyText())
-                        .font(.system(size: 13))
-                        .foregroundStyle(level.bodyColor)
-                        .lineSpacing(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    if !result.issues.isEmpty {
-                        Text("Potential Causes")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(level.titleColor)
-
-                        PillFlowLayout(hSpacing: 8, vSpacing: 8) {
-                            ForEach(result.issues) { issue in
-                                IssuePill(issue: issue,
-                                          accentColor: level.cardBorder,
-                                          pillBg: level.pillBg,
-                                          pillText: level.pillText)
-                            }
-                        }
+                Text("Ideal")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Color(red: 22/255, green: 163/255, blue: 74/255))
+                // Dashed swatch made from small capsules
+                HStack(spacing: 2) {
+                    ForEach(0..<5, id: \.self) { _ in
+                        Capsule()
+                            .fill(Color(red: 22/255, green: 163/255, blue: 74/255).opacity(0.55))
+                            .frame(width: 4, height: 1.5)
                     }
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-        }
-        .padding(16)
-        .background(level.cardBg)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(level.cardBorder, lineWidth: 2)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                isExpanded.toggle()
+            .padding(.horizontal, 24)
+            .padding(.bottom, 10)
+
+            // ── Bars with ideal dashed line overlaid ──
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                    ColumnBar(
+                        level: entry.level,
+                        chartHeight: chartHeight,
+                        idealFraction: idealFraction,
+                        delay: entry.delay
+                    )
+                }
             }
+            .padding(.horizontal, 20)
+            .frame(height: chartHeight)
+            .overlay {
+                // Canvas sees the same frame as the padded HStack
+                Canvas { ctx, size in
+                    let y = size.height * (1 - idealFraction)
+                    var path = Path()
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: size.width, y: y))
+                    ctx.stroke(
+                        path,
+                        with: .color(Color(red: 22/255, green: 163/255, blue: 74/255).opacity(0.50)),
+                        style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                    )
+                }
+            }
+
+            // ── X-axis line ──
+            Rectangle()
+                .fill(Color(red: 209/255, green: 213/255, blue: 219/255))
+                .frame(height: 1.5)
+                .padding(.horizontal, 20)
+
+            // ── Angled parameter labels ──
+            HStack(spacing: 8) {
+                ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                    Text(entry.shortName)
+                        .font(.system(size: 9.5, weight: .medium))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                        .rotationEffect(.degrees(-35))
+                }
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 52)
+            .padding(.top, 4)
         }
     }
 }
@@ -424,91 +292,38 @@ struct PoolTestResultsView: View {
 
             // MARK: Cards
             ScrollView {
-                VStack(spacing: 16) {
-                    SummaryCard(analysis: analysis)
+                VStack(spacing: 0) {
 
-                    Text("Parameter Results")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // ── Summary + section label (inset) ──
+                    VStack(spacing: 16) {
+                        SummaryCard(analysis: analysis)
 
-                    ChemistryResultCard(
-                        parameterName: "Free Chlorine",
-                        unitLabel: "ppm",
-                        enteredValue: formData.freeChlorine,
-                        result: analysis.freeChlorine
-                    )
+                        Text("Parameter Results")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .padding(.bottom, 24)
 
-                    let fc = Double(formData.freeChlorine) ?? 0
-                    let tc = Double(formData.totalChlorine) ?? 0
-                    let cc = max(tc - fc, 0)
-                    let ccString = String(format: cc.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.2f", cc)
-
-                    ChemistryResultCard(
-                        parameterName: "Combined Chlorine",
-                        unitLabel: "ppm",
-                        enteredValue: ccString,
-                        result: analysis.combinedChlorine
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "pH",
-                        unitLabel: "",
-                        enteredValue: formData.pH,
-                        result: analysis.pH
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "Alkalinity",
-                        unitLabel: "ppm",
-                        enteredValue: formData.alkalinity,
-                        result: analysis.alkalinity
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "Stabilizer (CYA)",
-                        unitLabel: "ppm",
-                        enteredValue: formData.cyanuricAcid,
-                        result: analysis.stabilizer
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "Phosphates",
-                        unitLabel: "ppb",
-                        enteredValue: formData.phosphates,
-                        result: analysis.phosphates
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "Calcium Hardness",
-                        unitLabel: "ppm",
-                        enteredValue: formData.calciumHardness,
-                        result: analysis.calcium
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "Copper",
-                        unitLabel: "ppm",
-                        enteredValue: formData.copper,
-                        result: analysis.copper
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "Iron",
-                        unitLabel: "ppm",
-                        enteredValue: formData.iron,
-                        result: analysis.iron
-                    )
-
-                    ChemistryResultCard(
-                        parameterName: "Magnesium",
-                        unitLabel: "ppm",
-                        enteredValue: formData.magnesium,
-                        result: analysis.magnesium
-                    )
+                    // ── Column chart ──
+                    ParameterColumnChart(entries: [
+                        .init(shortName: "Free Cl",    level: analysis.freeChlorine.level,     delay: 0.05),
+                        .init(shortName: "Comb. Cl",   level: analysis.combinedChlorine.level, delay: 0.13),
+                        .init(shortName: "pH",         level: analysis.pH.level,               delay: 0.21),
+                        .init(shortName: "Alkalinity",  level: analysis.alkalinity.level,       delay: 0.29),
+                        .init(shortName: "CYA",        level: analysis.stabilizer.level,       delay: 0.37),
+                        .init(shortName: "Phosphates",  level: analysis.phosphates.level,       delay: 0.45),
+                        .init(shortName: "Calcium",    level: analysis.calcium.level,          delay: 0.53),
+                    ])
+                    .padding(.vertical, 20)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 48)
                 }
-                .padding(24)
-                .padding(.bottom, 40)
             }
             .background(Color(red: 249/255, green: 250/255, blue: 251/255))
         }

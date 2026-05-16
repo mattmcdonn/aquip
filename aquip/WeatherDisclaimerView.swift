@@ -1,69 +1,42 @@
 import SwiftUI
 
-enum WeatherCondition: String {
-    case sunny, cloudy, rainy
-}
+// MARK: - Pill button rendered inside the blue gradient header
 
-struct WeatherData {
-    let condition: WeatherCondition
-    let temperature: Int
-}
-
-let mockWeather = WeatherData(condition: .sunny, temperature: 78)
-
-func weatherIconName(for condition: WeatherCondition) -> String {
-    switch condition {
-    case .sunny: return "sun.max.fill"
-    case .cloudy: return "cloud.fill"
-    case .rainy: return "cloud.rain.fill"
-    }
-}
-
-func weatherIconColor(for condition: WeatherCondition) -> Color {
-    switch condition {
-    case .sunny: return Color(red: 245/255, green: 158/255, blue: 11/255)
-    case .cloudy: return Color(.systemGray)
-    case .rainy: return Color(red: 59/255, green: 130/255, blue: 246/255)
-    }
-}
-
-func weatherImpactText(condition: WeatherCondition, temperature: Int, testType: String?) -> String {
-    let waterType = testType == "spa" ? "spa" : "pool"
-    if condition == .sunny && temperature > 85 {
-        return "Hot sunny weather increases chlorine consumption. UV rays break down chlorine faster, requiring more frequent testing and chemical additions to maintain safe \(waterType) water."
-    } else if condition == .sunny {
-        return "Sunny weather increases UV exposure, which can reduce chlorine effectiveness. Consider testing your \(waterType) more frequently during prolonged sun exposure."
-    } else if condition == .rainy {
-        return "Rain can dilute \(waterType) chemicals and introduce contaminants. After heavy rain, test your water and adjust chemical levels as needed. pH levels may drop after rainfall."
-    } else {
-        return "Cloudy weather reduces UV exposure, helping chlorine last longer. However, continue regular testing to maintain balanced \(waterType) chemistry."
-    }
-}
-
-// Translucent pill button rendered inside the blue gradient header
 struct WeatherPillButton: View {
     var testType: String?
+    @State private var weatherService = WeatherService()
     @State private var isSheetOpen = false
 
     var body: some View {
         Button {
-            // Disable the fullScreenCover slide-up transition so only
-            // our custom dim + panel animations run
             var t = Transaction(animation: nil)
             t.disablesAnimations = true
             withTransaction(t) { isSheetOpen = true }
         } label: {
             HStack(spacing: 6) {
-                // Sun icon in white circle
-                Image(systemName: weatherIconName(for: mockWeather.condition))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(weatherIconColor(for: mockWeather.condition))
-                    .frame(width: 26, height: 26)
-                    .background(Color.white)
-                    .clipShape(Circle())
+                // Condition icon
+                Group {
+                    if weatherService.isLoading {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.gray)
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: weatherService.isAvailable
+                              ? weatherService.conditionSymbol
+                              : "location.slash.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(weatherService.isAvailable
+                                             ? weatherService.conditionColor
+                                             : Color(.systemGray3))
+                    }
+                }
+                .frame(width: 26, height: 26)
+                .background(Color.white)
+                .clipShape(Circle())
 
-                // Temperature pill
-                Text("\(mockWeather.temperature)°")
+                // Temperature
+                Text(weatherService.isLoading ? "···" : weatherService.temperatureDisplay)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
                     .padding(.horizontal, 7)
@@ -90,16 +63,19 @@ struct WeatherPillButton: View {
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .onAppear { weatherService.start() }
         .fullScreenCover(isPresented: $isSheetOpen) {
-            WeatherSheetCover(testType: testType, isPresented: $isSheetOpen)
+            WeatherSheetCover(testType: testType, weatherService: weatherService, isPresented: $isSheetOpen)
                 .presentationBackground(.clear)
         }
     }
 }
 
-// Transparent full-screen wrapper that slides the panel up from the bottom
+// MARK: - Full-screen wrapper with dim + slide-up panel
+
 struct WeatherSheetCover: View {
     var testType: String?
+    var weatherService: WeatherService
     @Binding var isPresented: Bool
     @State private var showDim = false
     @State private var showPanel = false
@@ -117,6 +93,7 @@ struct WeatherSheetCover: View {
                 // Full-width panel — slides up slightly after the dim
                 WeatherSheetView(
                     testType: testType,
+                    weatherService: weatherService,
                     isPresented: $isPresented,
                     screenHeight: screenHeight,
                     onDismiss: dismissSheet
@@ -153,20 +130,14 @@ struct WeatherSheetCover: View {
     }
 }
 
-// Full bottom sheet with weather details
+// MARK: - Bottom sheet content
+
 struct WeatherSheetView: View {
     var testType: String?
+    var weatherService: WeatherService
     @Binding var isPresented: Bool
     var screenHeight: CGFloat
     var onDismiss: () -> Void
-
-    private var impactText: String {
-        weatherImpactText(
-            condition: mockWeather.condition,
-            temperature: mockWeather.temperature,
-            testType: testType
-        )
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -195,56 +166,89 @@ struct WeatherSheetView: View {
             .frame(height: 44)
             .padding(.top, 12)
 
-            // Scrollable content
             ScrollView {
                 VStack(spacing: 20) {
-                    // Two large icon circles: weather + temperature
-                    HStack(spacing: 24) {
-                        // Weather icon
-                        Image(systemName: weatherIconName(for: mockWeather.condition))
-                            .font(.system(size: 32))
-                            .foregroundStyle(weatherIconColor(for: mockWeather.condition))
-                            .frame(width: 80, height: 80)
-                            .background(Color(red: 254/255, green: 243/255, blue: 199/255))
-                            .clipShape(Circle())
-                            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
 
-                        // Thermometer + temp
-                        VStack(spacing: 4) {
-                            Image(systemName: "thermometer.medium")
-                                .font(.system(size: 28))
-                                .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
-                            Text("\(mockWeather.temperature)°F")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
+                    // ── Current condition + temperature circles ──
+                    HStack(spacing: 24) {
+                        // Weather icon circle
+                        Group {
+                            if weatherService.isLoading {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .tint(Color(.systemGray))
+                                    .scaleEffect(1.2)
+                            } else {
+                                Image(systemName: weatherService.isAvailable
+                                      ? weatherService.conditionSymbol
+                                      : "location.slash.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(weatherService.isAvailable
+                                                     ? weatherService.conditionColor
+                                                     : Color(.systemGray3))
+                            }
                         }
                         .frame(width: 80, height: 80)
-                        .background(Color(red: 219/255, green: 234/255, blue: 254/255))
+                        .background(weatherService.isAvailable
+                                    ? weatherService.conditionBgColor
+                                    : Color(red: 243/255, green: 244/255, blue: 246/255))
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+
+                        // Temperature circle
+                        VStack(spacing: 4) {
+                            Image(systemName: weatherService.isAvailable ? "thermometer.medium" : "thermometer.slash")
+                                .font(.system(size: 28))
+                                .foregroundStyle(weatherService.isAvailable
+                                                 ? Color(red: 37/255, green: 99/255, blue: 235/255)
+                                                 : Color(.systemGray3))
+                            Text(weatherService.isLoading ? "···" : weatherService.temperatureDisplay)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(weatherService.isAvailable
+                                                 ? Color(red: 55/255, green: 65/255, blue: 81/255)
+                                                 : Color(.systemGray3))
+                        }
+                        .frame(width: 80, height: 80)
+                        .background(weatherService.isAvailable
+                                    ? Color(red: 219/255, green: 234/255, blue: 254/255)
+                                    : Color(red: 243/255, green: 244/255, blue: 246/255))
                         .clipShape(Circle())
                         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
                     }
                     .padding(.top, 8)
 
-                    // Current Weather Impact card (amber)
+                    // ── Weather Impact card ──
+                    let impactText = weatherService.impactText(for: testType)
+                    let (impactBg, impactBorder, impactTitle, impactBody): (Color, Color, Color, Color) = weatherService.isAvailable
+                        ? (
+                            Color(red: 255/255, green: 251/255, blue: 235/255),
+                            Color(red: 252/255, green: 211/255, blue: 77/255),
+                            Color(red: 120/255, green: 53/255, blue: 15/255),
+                            Color(red: 146/255, green: 64/255, blue: 14/255)
+                          )
+                        : (
+                            Color(red: 249/255, green: 250/255, blue: 251/255),
+                            Color(red: 229/255, green: 231/255, blue: 235/255),
+                            Color(red: 55/255, green: 65/255, blue: 81/255),
+                            Color(red: 107/255, green: 114/255, blue: 128/255)
+                          )
+
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Current Weather Impact")
+                        Text(weatherService.isAvailable ? "Current Weather Impact" : "Weather Unavailable")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Color(red: 120/255, green: 53/255, blue: 15/255))
+                            .foregroundStyle(impactTitle)
                         Text(impactText)
                             .font(.system(size: 14))
-                            .foregroundStyle(Color(red: 146/255, green: 64/255, blue: 14/255))
+                            .foregroundStyle(impactBody)
                             .lineSpacing(3)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
-                    .background(Color(red: 255/255, green: 251/255, blue: 235/255))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color(red: 252/255, green: 211/255, blue: 77/255), lineWidth: 1)
-                    )
+                    .background(impactBg)
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(impactBorder, lineWidth: 1))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
 
-                    // Weather Conditions section
+                    // ── Weather Conditions reference section ──
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Weather Conditions")
                             .font(.system(size: 16, weight: .semibold))
@@ -279,10 +283,20 @@ struct WeatherSheetView: View {
                             title: "Rainy",
                             description: "Rain dilutes chemicals and lowers pH. Test immediately after heavy rain and rebalance as needed."
                         )
+
+                        WeatherConditionRow(
+                            iconName: "cloud.snow.fill",
+                            iconColor: Color(red: 8/255, green: 145/255, blue: 178/255),
+                            iconBg: Color(red: 207/255, green: 250/255, blue: 254/255),
+                            cardBg: Color(red: 236/255, green: 254/255, blue: 255/255),
+                            cardBorder: Color(red: 165/255, green: 243/255, blue: 252/255),
+                            title: "Snow / Freezing",
+                            description: "Cold conditions slow chemical reactions. Monitor circulation to prevent freezing and check chemistry less frequently."
+                        )
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Temperature Effects section
+                    // ── Temperature Effects section ──
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Temperature Effects")
                             .font(.system(size: 16, weight: .semibold))
