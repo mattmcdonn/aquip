@@ -6,14 +6,26 @@ private struct SummaryCard: View {
     let analysis: PoolAnalysis
 
     private var issueCount: Int { analysis.totalIssueCount }
-    @State private var pulse = false
+    @State private var pulseScale = false
+    @State private var pulseOpacity = false
 
     private func schedulePulse() {
-        withAnimation(.easeOut(duration: 1.0)) { pulse = true }
+        // Fade in opacity first, then expand scale simultaneously
+        withAnimation(.easeOut(duration: 1.0)) {
+            pulseScale   = true
+            pulseOpacity = true
+        }
+        // At peak, fade opacity out — scale continues outward
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            withAnimation(.easeOut(duration: 0.75)) {
+                pulseOpacity = false
+            }
+        }
+        // Reset scale instantly (invisible so no snap visible)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             var t = Transaction()
             t.disablesAnimations = true
-            withTransaction(t) { pulse = false }
+            withTransaction(t) { pulseScale = false }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 schedulePulse()
             }
@@ -46,10 +58,11 @@ private struct SummaryCard: View {
             ZStack {
                 ForEach(0..<2, id: \.self) { i in
                     Circle()
-                        .stroke(iconColor.opacity(pulse ? 0 : 0.28), lineWidth: 1.5)
+                        .stroke(iconColor.opacity(pulseOpacity ? 0.28 : 0), lineWidth: 1.5)
                         .frame(width: 40, height: 40)
-                        .scaleEffect(pulse ? 1.45 : 1.0)
-                        .animation(.easeOut(duration: 1.0).delay(Double(i) * 0.15), value: pulse)
+                        .scaleEffect(pulseScale ? 1.45 : 1.0)
+                        .animation(.easeOut(duration: 1.0).delay(Double(i) * 0.18), value: pulseScale)
+                        .animation(.easeOut(duration: 0.75).delay(Double(i) * 0.18), value: pulseOpacity)
                 }
                 Image(systemName: allClear ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                     .font(.system(size: 20))
@@ -204,20 +217,22 @@ private struct ParameterColumnChart: View {
                 .frame(height: 1.5)
                 .padding(.horizontal, 20)
 
-            // ── Angled parameter labels ──
+            // ── Angled parameter labels (tilted down-right, anchored top-centre) ──
             HStack(spacing: 8) {
                 ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
                     Text(entry.shortName)
                         .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
-                        .rotationEffect(.degrees(-35))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .rotationEffect(.degrees(35), anchor: .topLeading)
                 }
             }
             .padding(.horizontal, 20)
-            .frame(height: 52)
-            .padding(.top, 4)
+            .frame(height: 68, alignment: .top)
+            .padding(.top, 6)
+            .clipped()
         }
     }
 }
@@ -309,13 +324,13 @@ struct PoolTestResultsView: View {
 
                     // ── Column chart ──
                     ParameterColumnChart(entries: [
-                        .init(shortName: "Free Cl",    level: analysis.freeChlorine.level,     delay: 0.05),
-                        .init(shortName: "Comb. Cl",   level: analysis.combinedChlorine.level, delay: 0.13),
-                        .init(shortName: "pH",         level: analysis.pH.level,               delay: 0.21),
-                        .init(shortName: "Alkalinity",  level: analysis.alkalinity.level,       delay: 0.29),
-                        .init(shortName: "CYA",        level: analysis.stabilizer.level,       delay: 0.37),
-                        .init(shortName: "Phosphates",  level: analysis.phosphates.level,       delay: 0.45),
-                        .init(shortName: "Calcium",    level: analysis.calcium.level,          delay: 0.53),
+                        .init(shortName: "Free Chlorine",     level: analysis.freeChlorine.level,     delay: 0.05),
+                        .init(shortName: "Combined Chlorine", level: analysis.combinedChlorine.level, delay: 0.13),
+                        .init(shortName: "pH",                level: analysis.pH.level,               delay: 0.21),
+                        .init(shortName: "Alkalinity",        level: analysis.alkalinity.level,       delay: 0.29),
+                        .init(shortName: "Stabilizer (CYA)",  level: analysis.stabilizer.level,       delay: 0.37),
+                        .init(shortName: "Phosphates",        level: analysis.phosphates.level,       delay: 0.45),
+                        .init(shortName: "Calcium",           level: analysis.calcium.level,          delay: 0.53),
                     ])
                     .padding(.vertical, 20)
                     .background(Color.white)
