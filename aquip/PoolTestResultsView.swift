@@ -40,59 +40,52 @@ private struct SummaryCard: View {
         let iconBg: Color = allClear
             ? Color(red: 220/255, green: 252/255, blue: 231/255)
             : Color(red: 254/255, green: 243/255, blue: 199/255)
-        let titleColor: Color = allClear
-            ? Color(red: 20/255, green: 83/255, blue: 45/255)
-            : Color(red: 120/255, green: 53/255, blue: 15/255)
-        let bodyColor: Color = allClear
+        let textColor: Color = allClear
             ? Color(red: 22/255, green: 101/255, blue: 52/255)
-            : Color(red: 146/255, green: 64/255, blue: 14/255)
+            : Color(red: 120/255, green: 53/255, blue: 15/255)
         let cardBg: Color = allClear
             ? Color(red: 240/255, green: 253/255, blue: 244/255)
             : Color(red: 255/255, green: 251/255, blue: 235/255)
         let cardBorder: Color = allClear
             ? Color(red: 134/255, green: 239/255, blue: 172/255)
             : Color(red: 252/255, green: 211/255, blue: 77/255)
+        let label: Text = allClear
+            ? (Text("All levels are good,").bold() + Text(" continue maintaining water"))
+            : (Text("\(issueCount) issue\(issueCount == 1 ? "" : "s") found,").bold() + Text(" review next steps"))
 
-        HStack(spacing: 14) {
-            // Pulsing icon
+        HStack(spacing: 10) {
             ZStack {
                 ForEach(0..<2, id: \.self) { i in
                     Circle()
                         .stroke(iconColor.opacity(pulseOpacity ? 0.28 : 0), lineWidth: 1.5)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 28, height: 28)
                         .scaleEffect(pulseScale ? 1.45 : 1.0)
                         .animation(.easeOut(duration: 1.0).delay(Double(i) * 0.18), value: pulseScale)
                         .animation(.easeOut(duration: 0.75).delay(Double(i) * 0.18), value: pulseOpacity)
                 }
                 Image(systemName: allClear ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 20))
+                    .font(.system(size: 14))
                     .foregroundStyle(iconColor)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 28, height: 28)
                     .background(iconBg)
                     .clipShape(Circle())
             }
             .onAppear { schedulePulse() }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(allClear ? "Water Looks Good" : "\(issueCount) Issue\(issueCount == 1 ? "" : "s") Found")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(titleColor)
-                Text(allClear
-                    ? "All levels are good."
-                    : "One or more parameters need attention.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(bodyColor)
-                    .lineSpacing(2)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            label
+                .font(.system(size: 13))
+                .foregroundStyle(textColor)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(cardBg)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(cardBorder, lineWidth: 2)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(cardBorder, lineWidth: 1.5)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -280,6 +273,195 @@ private struct ParameterColumnChart: View {
     }
 }
 
+// MARK: - Water temperature ring card
+
+private struct WaterTempCard: View {
+    let tempString: String
+    let tempUnit: String
+
+    private var tempFahrenheit: Double? {
+        guard let t = Double(tempString) else { return nil }
+        return tempUnit == "celsius" ? t * 9/5 + 32 : t
+    }
+
+    private var tempCategory: (label: String, color: Color) {
+        guard let f = tempFahrenheit else {
+            return ("—", Color(red: 156/255, green: 163/255, blue: 175/255))
+        }
+        switch f {
+        case ..<60:   return ("Cold",         Color(red: 59/255,  green: 130/255, blue: 246/255))
+        case 60..<70: return ("Transitional",  Color(red: 125/255, green: 211/255, blue: 252/255))
+        case 70..<85: return ("Ideal",         Color(red: 22/255,  green: 163/255, blue: 74/255))
+        case 85..<90: return ("Warm",          Color(red: 234/255, green: 88/255,  blue: 12/255))
+        default:      return ("Hot",           Color(red: 220/255, green: 38/255,  blue: 38/255))
+        }
+    }
+
+    // Fraction of the ring to fill (0–1). Map 32–110°F range for visual.
+    private var ringFraction: Double {
+        guard let f = tempFahrenheit else { return 0 }
+        let clamped = min(max(f, 32), 110)
+        return (clamped - 32) / (110 - 32)
+    }
+
+    @State private var animatedFraction: Double = 0
+
+    var body: some View {
+        let color = tempCategory.color
+        let label = tempCategory.label
+        let displayTemp = tempString.isEmpty ? "—" : tempString
+        let unit = tempUnit == "celsius" ? "°C" : "°F"
+
+        VStack(alignment: .leading, spacing: 0) {
+            // Title row
+            HStack(alignment: .center) {
+                Text("Temperature")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                Spacer()
+                Text(label)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(color)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(color.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+
+            // Ring
+            ZStack {
+                // Track
+                Circle()
+                    .stroke(color.opacity(0.15), lineWidth: 18)
+                // Fill
+                Circle()
+                    .trim(from: 0, to: animatedFraction)
+                    .stroke(
+                        color,
+                        style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 1.1), value: animatedFraction)
+                // Label
+                VStack(spacing: 2) {
+                    Text(displayTemp)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                    Text(unit)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                }
+            }
+            .frame(width: 100, height: 100)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, 16)
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    animatedFraction = ringFraction
+                }
+            }
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+}
+
+// MARK: - Pool quick info card
+
+private struct PoolQuickInfoCard: View {
+    let formData: PoolFormData
+    @Environment(WaterBodyStore.self) private var store
+
+    private var poolName: String {
+        guard formData.savedPool != "none",
+              let body = store.bodies.first(where: { $0.id.uuidString == formData.savedPool })
+        else { return "None" }
+        return body.name
+    }
+
+    private var volumeDisplay: String {
+        guard !formData.volume.isEmpty else { return "—" }
+        let unit = formData.volumeUnit == "liters" ? "L" : "gal"
+        return "\(formData.volume) \(unit)"
+    }
+
+    private var sanitizerIcon: String {
+        switch formData.sanitizer {
+        case "salt":    return "waveform"
+        case "bromine": return "flame.fill"
+        default:        return "drop.fill"
+        }
+    }
+
+    private var sanitizerLabel: String {
+        switch formData.sanitizer {
+        case "salt":    return "Salt"
+        case "bromine": return "Bromine"
+        default:        return "Chlorine"
+        }
+    }
+
+    private var sanitizerColor: Color {
+        switch formData.sanitizer {
+        case "salt":    return Color(red: 8/255,   green: 145/255, blue: 178/255)
+        case "bromine": return Color(red: 217/255, green: 119/255, blue: 6/255)
+        default:        return Color(red: 37/255,  green: 99/255,  blue: 235/255)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            statItem(label: "Name",   value: poolName)
+            vDivider()
+            statItem(label: "Volume", value: volumeDisplay)
+            vDivider()
+            HStack(spacing: 7) {
+                Image(systemName: sanitizerIcon)
+                    .font(.system(size: 16))
+                    .foregroundStyle(sanitizerColor)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Sanitizer")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color(red: 156/255, green: 163/255, blue: 175/255))
+                    Text(sanitizerLabel)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 1)
+    }
+
+    @ViewBuilder
+    private func statItem(label: String, value: String) -> some View {
+        VStack(spacing: 3) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color(red: 156/255, green: 163/255, blue: 175/255))
+            Text(value)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func vDivider() -> some View {
+        Rectangle()
+            .fill(Color(red: 229/255, green: 231/255, blue: 235/255))
+            .frame(width: 1, height: 38)
+    }
+}
+
 // MARK: - Pool info card
 
 private struct PoolInfoCard: View {
@@ -363,60 +545,13 @@ private struct PoolInfoCard: View {
         VStack(alignment: .leading, spacing: 0) {
 
             // ── Card header ──
-            HStack(spacing: 8) {
-                Image(systemName: "drop.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
-                Text("Pool Overview")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-
-            Divider()
-
-            // ── Info rows ──
-            VStack(spacing: 0) {
-                infoRow(label: "Pool Name",  value: poolName)
-                Divider().padding(.leading, 16)
-                infoRow(label: "Volume",     value: volumeDisplay)
-                Divider().padding(.leading, 16)
-                HStack {
-                    Text("Sanitizer")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
-                    Spacer()
-                    HStack(spacing: 5) {
-                        Image(systemName: sanitizerInfo.icon)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(sanitizerInfo.color)
-                        Text(sanitizerInfo.label)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                Divider().padding(.leading, 16)
-                infoRow(label: "Water Temp", value: waterTempDisplay)
-                if formData.sanitizer == "salt" {
-                    Divider().padding(.leading, 16)
-                    infoRow(label: "Salt Level", value: val(formData.saltLevel, "ppm"))
-                }
-            }
-
-            Divider()
-
-            // ── Parameter readings header ──
             Text("Parameter Readings")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
-                .textCase(.uppercase)
-                .tracking(0.5)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 6)
+                .padding(.vertical, 14)
+
+            Divider()
 
             // ── Parameter rows ──
             VStack(spacing: 0) {
@@ -425,7 +560,16 @@ private struct PoolInfoCard: View {
                     paramRow(row)
                 }
             }
-            .padding(.bottom, 6)
+
+            Divider()
+
+            // ── Conditions ──
+            tempInfoRow()
+            if formData.sanitizer == "salt" {
+                Divider().padding(.leading, 16)
+                infoRow(label: "Salt Level", value: val(formData.saltLevel, "ppm"))
+            }
+            Spacer().frame(height: 6)
         }
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -445,6 +589,43 @@ private struct PoolInfoCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private func tempInfoRow() -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(tempBadgeColor(formData.waterTemp, formData.tempUnit).opacity(0.15))
+                    .frame(width: 28, height: 28)
+                Image(systemName: "thermometer.medium")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(tempBadgeColor(formData.waterTemp, formData.tempUnit))
+            }
+            Text("Water Temperature")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+            Spacer()
+            Text(waterTempDisplay)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func tempBadgeColor(_ tempStr: String, _ unit: String) -> Color {
+        guard let t = Double(tempStr) else {
+            return Color(red: 156/255, green: 163/255, blue: 175/255)
+        }
+        let f = unit == "celsius" ? t * 9/5 + 32 : t
+        switch f {
+        case ..<60:   return Color(red: 59/255,  green: 130/255, blue: 246/255)
+        case 60..<70: return Color(red: 125/255, green: 211/255, blue: 252/255)
+        case 70..<85: return Color(red: 22/255,  green: 163/255, blue: 74/255)
+        case 85..<90: return Color(red: 234/255, green: 88/255,  blue: 12/255)
+        default:      return Color(red: 220/255, green: 38/255,  blue: 38/255)
+        }
     }
 
     @ViewBuilder
@@ -677,18 +858,20 @@ struct PoolTestResultsView: View {
             ScrollView {
                 VStack(spacing: 0) {
 
-                    // ── Summary + section label (inset) ──
-                    VStack(spacing: 16) {
-                        SummaryCard(analysis: analysis)
+                    // ── Quick info + section label + alert ──
+                    VStack(spacing: 12) {
+                        PoolQuickInfoCard(formData: formData)
 
                         Text("Parameter Results")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
                             .frame(maxWidth: .infinity, alignment: .leading)
+
+                        SummaryCard(analysis: analysis)
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 24)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 16)
 
                     // ── Horizontally scrolling chart cards ──
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -707,6 +890,11 @@ struct PoolTestResultsView: View {
                                 columnSlots: 7
                             )
                             .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
+                            WaterTempCard(
+                                tempString: formData.waterTemp,
+                                tempUnit: formData.tempUnit
+                            )
+                            .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
                             ParameterColumnChart(
                                 title: "Metals",
                                 entries: [
@@ -720,7 +908,7 @@ struct PoolTestResultsView: View {
                         }
                         .scrollTargetLayout()
                     }
-                    .contentMargins(.horizontal, 20, for: .scrollContent)
+                    .contentMargins(.horizontal, 28, for: .scrollContent)
                     .scrollTargetBehavior(.viewAligned)
                     .padding(.bottom, 20)
 
