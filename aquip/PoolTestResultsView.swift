@@ -78,8 +78,8 @@ private struct SummaryCard: View {
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(titleColor)
                 Text(allClear
-                    ? "All checked parameters are within the acceptable range."
-                    : "One or more parameters need attention. Review the details below.")
+                    ? "All levels are good."
+                    : "One or more parameters need attention.")
                     .font(.system(size: 13))
                     .foregroundStyle(bodyColor)
                     .lineSpacing(2)
@@ -104,6 +104,7 @@ private struct ColumnBar: View {
     let idealFraction: CGFloat
     let delay: Double
 
+    private let iconAreaHeight: CGFloat = 26
     @State private var animated = false
 
     private var targetFraction: CGFloat {
@@ -114,32 +115,54 @@ private struct ColumnBar: View {
         }
     }
 
-    private var barGradient: LinearGradient {
-        level == .ok
-            ? LinearGradient(
-                colors: [Color(red: 74/255,  green: 222/255, blue: 128/255),
-                         Color(red: 22/255,  green: 163/255, blue: 74/255)],
-                startPoint: .top, endPoint: .bottom
-              )
-            : LinearGradient(
-                colors: [Color(red: 253/255, green: 224/255, blue: 71/255),
-                         Color(red: 245/255, green: 158/255, blue: 11/255)],
-                startPoint: .top, endPoint: .bottom
-              )
+    private var barColor: Color {
+        switch level {
+        case .low:  return Color(red: 59/255,  green: 130/255, blue: 246/255)
+        case .ok:   return Color(red: 22/255,  green: 163/255, blue: 74/255)
+        case .high: return Color(red: 234/255, green: 88/255,  blue: 12/255)
+        }
+    }
+
+    private var iconCircleFill: Color {
+        switch level {
+        case .low:  return Color(red: 219/255, green: 234/255, blue: 254/255)
+        case .ok:   return Color(red: 220/255, green: 252/255, blue: 231/255)
+        case .high: return Color(red: 255/255, green: 237/255, blue: 213/255)
+        }
+    }
+
+    private var iconName: String {
+        switch level {
+        case .low:  return "chevron.down"
+        case .ok:   return "checkmark"
+        case .high: return "chevron.up"
+        }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 3) {
             Spacer(minLength: 0)
-            RoundedRectangle(cornerRadius: 5)
-                .fill(barGradient)
-                .frame(height: chartHeight * (animated ? targetFraction : 0))
-                .animation(
-                    .spring(response: 0.65, dampingFraction: 0.72).delay(delay),
-                    value: animated
+            ZStack {
+                Circle()
+                    .fill(iconCircleFill)
+                    .frame(width: 18, height: 18)
+                Image(systemName: iconName)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(barColor)
+            }
+            RoundedRectangle(cornerRadius: 6)
+                .fill(barColor.opacity(0.85))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(barColor, lineWidth: 2)
                 )
+                .frame(height: chartHeight * (animated ? targetFraction : 0))
         }
-        .frame(maxWidth: .infinity, maxHeight: chartHeight)
+        .frame(maxWidth: .infinity, maxHeight: chartHeight + iconAreaHeight)
+        .animation(
+            .spring(response: 0.65, dampingFraction: 0.72).delay(delay),
+            value: animated
+        )
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 animated = true
@@ -153,38 +176,51 @@ private struct ColumnBar: View {
 private struct ParameterColumnChart: View {
 
     struct Entry {
-        let shortName: String
+        let abbrev: String
         let level: ChemistryLevel
         let delay: Double
     }
 
+    let title: String
     let entries: [Entry]
-    private let chartHeight: CGFloat = 144
+    let columnSlots: Int
+    private let chartHeight: CGFloat = 90
     private let idealFraction: CGFloat = 0.54
+    private let iconAreaHeight: CGFloat = 26
 
     var body: some View {
-        VStack(spacing: 0) {
+        let extraSlots = columnSlots - entries.count
+        let leadingSlots = extraSlots / 2
+        let trailingSlots = extraSlots - leadingSlots
 
-            // ── Legend ──
-            HStack(spacing: 5) {
+        VStack(alignment: .leading, spacing: 0) {
+
+            // ── Title row with pill legend ──
+            HStack(alignment: .center) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
                 Spacer()
-                Text("Ideal")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color(red: 22/255, green: 163/255, blue: 74/255))
-                // Dashed swatch made from small capsules
-                HStack(spacing: 2) {
-                    ForEach(0..<5, id: \.self) { _ in
-                        Capsule()
-                            .fill(Color(red: 22/255, green: 163/255, blue: 74/255).opacity(0.55))
-                            .frame(width: 4, height: 1.5)
-                    }
+                // Pill legend
+                HStack(spacing: 8) {
+                    legendItem(color: Color(red: 22/255,  green: 163/255, blue: 74/255),  label: "Ideal")
+                    legendItem(color: Color(red: 59/255,  green: 130/255, blue: 246/255), label: "Low")
+                    legendItem(color: Color(red: 234/255, green: 88/255,  blue: 12/255),  label: "High")
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color(red: 243/255, green: 244/255, blue: 246/255))
+                .clipShape(Capsule())
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
             .padding(.bottom, 10)
 
-            // ── Bars with ideal dashed line overlaid ──
-            HStack(alignment: .bottom, spacing: 8) {
+            // ── Bars (icon floats just above each bar inside ColumnBar) ──
+            HStack(alignment: .bottom, spacing: 0) {
+                ForEach(0..<leadingSlots, id: \.self) { _ in
+                    Color.clear.frame(maxWidth: .infinity)
+                }
                 ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
                     ColumnBar(
                         level: entry.level,
@@ -193,47 +229,394 @@ private struct ParameterColumnChart: View {
                         delay: entry.delay
                     )
                 }
-            }
-            .padding(.horizontal, 20)
-            .frame(height: chartHeight)
-            .overlay {
-                // Canvas sees the same frame as the padded HStack
-                Canvas { ctx, size in
-                    let y = size.height * (1 - idealFraction)
-                    var path = Path()
-                    path.move(to: CGPoint(x: 0, y: y))
-                    path.addLine(to: CGPoint(x: size.width, y: y))
-                    ctx.stroke(
-                        path,
-                        with: .color(Color(red: 22/255, green: 163/255, blue: 74/255).opacity(0.50)),
-                        style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
-                    )
+                ForEach(0..<trailingSlots, id: \.self) { _ in
+                    Color.clear.frame(maxWidth: .infinity)
                 }
             }
+            .padding(.horizontal, 16)
+            .frame(height: chartHeight + iconAreaHeight)
 
-            // ── X-axis line ──
+            // ── X-axis ──
             Rectangle()
-                .fill(Color(red: 209/255, green: 213/255, blue: 219/255))
-                .frame(height: 1.5)
-                .padding(.horizontal, 20)
+                .fill(Color(red: 229/255, green: 231/255, blue: 235/255))
+                .frame(height: 1)
+                .padding(.horizontal, 16)
 
-            // ── Angled parameter labels (tilted down-right, anchored top-centre) ──
-            HStack(spacing: 8) {
+            // ── Abbreviated labels ──
+            HStack(spacing: 0) {
+                ForEach(0..<leadingSlots, id: \.self) { _ in
+                    Color.clear.frame(maxWidth: .infinity)
+                }
                 ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
-                    Text(entry.shortName)
-                        .font(.system(size: 9.5, weight: .medium))
+                    Text(entry.abbrev)
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .rotationEffect(.degrees(35), anchor: .topLeading)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                }
+                ForEach(0..<trailingSlots, id: \.self) { _ in
+                    Color.clear.frame(maxWidth: .infinity)
                 }
             }
-            .padding(.horizontal, 20)
-            .frame(height: 68, alignment: .top)
-            .padding(.top, 6)
-            .clipped()
+            .padding(.horizontal, 16)
+            .padding(.top, 5)
+            .padding(.bottom, 14)
         }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private func legendItem(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+        }
+    }
+}
+
+// MARK: - Pool info card
+
+private struct PoolInfoCard: View {
+    let formData: PoolFormData
+    let analysis: PoolAnalysis
+    @Environment(WaterBodyStore.self) private var store
+
+    private var poolName: String {
+        guard formData.savedPool != "none",
+              let body = store.bodies.first(where: { $0.id.uuidString == formData.savedPool })
+        else { return "None" }
+        return body.name
+    }
+
+    private var volumeDisplay: String {
+        guard !formData.volume.isEmpty else { return "—" }
+        let unit = formData.volumeUnit == "liters" ? "L" : "gal"
+        return "\(formData.volume) \(unit)"
+    }
+
+    private var sanitizerInfo: (label: String, icon: String, color: Color) {
+        switch formData.sanitizer {
+        case "salt":    return ("Salt",    "waveform",   Color(red: 8/255,   green: 145/255, blue: 178/255))
+        case "bromine": return ("Bromine", "flame.fill", Color(red: 217/255, green: 119/255, blue: 6/255))
+        default:        return ("Chlorine","drop.fill",  Color(red: 37/255,  green: 99/255,  blue: 235/255))
+        }
+    }
+
+    private var waterTempDisplay: String {
+        guard !formData.waterTemp.isEmpty else { return "—" }
+        let unit = formData.tempUnit == "celsius" ? "°C" : "°F"
+        return "\(formData.waterTemp) \(unit)"
+    }
+
+    private var combinedChlorineDisplay: String {
+        if let total = Double(formData.totalChlorine), let free = Double(formData.freeChlorine) {
+            return String(format: "%.1f ppm", max(0, total - free))
+        }
+        return "—"
+    }
+
+    private struct ParamRow {
+        let name: String
+        let value: String
+        let idealRange: String
+        let level: ChemistryLevel
+    }
+
+    private var parameters: [ParamRow] {
+        let salt = formData.sanitizer == "salt"
+        return [
+            .init(name: "Free Chlorine",     value: val(formData.freeChlorine, "ppm"),
+                  idealRange: salt ? "2–4 ppm" : "1–3 ppm",   level: analysis.freeChlorine.level),
+            .init(name: "Combined Chlorine", value: combinedChlorineDisplay,
+                  idealRange: "< 0.2 ppm",                     level: analysis.combinedChlorine.level),
+            .init(name: "pH",                value: val(formData.pH, ""),
+                  idealRange: "7.2–7.6",                       level: analysis.pH.level),
+            .init(name: "Alkalinity",        value: val(formData.alkalinity, "ppm"),
+                  idealRange: "80–120 ppm",                    level: analysis.alkalinity.level),
+            .init(name: "CYA",               value: val(formData.cyanuricAcid, "ppm"),
+                  idealRange: salt ? "60–90 ppm" : "30–70 ppm",level: analysis.stabilizer.level),
+            .init(name: "Calcium Hardness",  value: val(formData.calciumHardness, "ppm"),
+                  idealRange: "200–500 ppm",                   level: analysis.calcium.level),
+            .init(name: "Phosphates",        value: val(formData.phosphates, "ppb"),
+                  idealRange: "< 100 ppb",                     level: analysis.phosphates.level),
+            .init(name: "Copper",            value: val(formData.copper, "ppm"),
+                  idealRange: "≤ 0.2 ppm",                     level: analysis.copper.level),
+            .init(name: "Iron",              value: val(formData.iron, "ppm"),
+                  idealRange: "≤ 0.1 ppm",                     level: analysis.iron.level),
+            .init(name: "Magnesium",         value: val(formData.magnesium, "ppm"),
+                  idealRange: "≤ 50 ppm",                      level: analysis.magnesium.level),
+        ]
+    }
+
+    private func val(_ raw: String, _ unit: String) -> String {
+        guard !raw.isEmpty else { return "—" }
+        return unit.isEmpty ? raw : "\(raw) \(unit)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+
+            // ── Card header ──
+            HStack(spacing: 8) {
+                Image(systemName: "drop.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                Text("Pool Overview")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+
+            Divider()
+
+            // ── Info rows ──
+            VStack(spacing: 0) {
+                infoRow(label: "Pool Name",  value: poolName)
+                Divider().padding(.leading, 16)
+                infoRow(label: "Volume",     value: volumeDisplay)
+                Divider().padding(.leading, 16)
+                HStack {
+                    Text("Sanitizer")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                    Spacer()
+                    HStack(spacing: 5) {
+                        Image(systemName: sanitizerInfo.icon)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(sanitizerInfo.color)
+                        Text(sanitizerInfo.label)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                Divider().padding(.leading, 16)
+                infoRow(label: "Water Temp", value: waterTempDisplay)
+                if formData.sanitizer == "salt" {
+                    Divider().padding(.leading, 16)
+                    infoRow(label: "Salt Level", value: val(formData.saltLevel, "ppm"))
+                }
+            }
+
+            Divider()
+
+            // ── Parameter readings header ──
+            Text("Parameter Readings")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                .textCase(.uppercase)
+                .tracking(0.5)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 6)
+
+            // ── Parameter rows ──
+            VStack(spacing: 0) {
+                ForEach(Array(parameters.enumerated()), id: \.offset) { i, row in
+                    if i > 0 { Divider().padding(.leading, 56) }
+                    paramRow(row)
+                }
+            }
+            .padding(.bottom, 6)
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private func infoRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+            Spacer()
+            Text(value)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private func paramRow(_ row: ParamRow) -> some View {
+        HStack(spacing: 12) {
+            levelBadge(row.level)
+            Text(row.name)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(row.value)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                Text("Ideal: \(row.idealRange)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private func levelBadge(_ level: ChemistryLevel) -> some View {
+        switch level {
+        case .ok:
+            ZStack {
+                Circle().fill(Color(red: 220/255, green: 252/255, blue: 231/255)).frame(width: 28, height: 28)
+                Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color(red: 22/255, green: 163/255, blue: 74/255))
+            }
+        case .low:
+            ZStack {
+                Circle().fill(Color(red: 219/255, green: 234/255, blue: 254/255)).frame(width: 28, height: 28)
+                Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color(red: 59/255, green: 130/255, blue: 246/255))
+            }
+        case .high:
+            ZStack {
+                Circle().fill(Color(red: 255/255, green: 237/255, blue: 213/255)).frame(width: 28, height: 28)
+                Image(systemName: "chevron.up").font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color(red: 234/255, green: 88/255, blue: 12/255))
+            }
+        }
+    }
+}
+
+// MARK: - Next steps card
+
+private struct NextStepsCard: View {
+
+    private struct Step {
+        let number: Int
+        let title: String
+        let product: String?
+        let description: String
+    }
+
+    private let steps: [Step] = [
+        Step(number: 1,
+             title: "Add alkalinity increaser (sodium bicarbonate)",
+             product: "Sodium Bicarbonate / Alkalinity Up",
+             description: "Stabilizes pH levels and prevents rapid pH fluctuations"),
+        Step(number: 2,
+             title: "Wait 4–6 hours and retest pH and alkalinity",
+             product: nil,
+             description: "Allow chemicals to circulate and stabilize before proceeding"),
+        Step(number: 3,
+             title: "Add calcium chloride",
+             product: "Calcium Chloride",
+             description: "Raises calcium hardness to prevent corrosive water and equipment damage"),
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // ── Gradient header ──
+            HStack(spacing: 10) {
+                Image(systemName: "list.number")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("Next Steps Action Plan")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [Color(red: 37/255, green: 99/255, blue: 235/255),
+                             Color(red: 6/255, green: 182/255, blue: 212/255)],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            )
+            .clipShape(UnevenRoundedRectangle(
+                topLeadingRadius: 16, bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0, topTrailingRadius: 16
+            ))
+
+            // ── Body ──
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Follow these steps in order:")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                    Text("Complete each step before moving to the next")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 12)
+
+                Divider()
+
+                ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                    if i > 0 { Divider().padding(.leading, 58) }
+                    stepRow(step)
+                }
+            }
+            .background(Color.white)
+            .clipShape(UnevenRoundedRectangle(
+                topLeadingRadius: 0, bottomLeadingRadius: 16,
+                bottomTrailingRadius: 16, topTrailingRadius: 0
+            ))
+        }
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private func stepRow(_ step: Step) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 59/255, green: 130/255, blue: 246/255),
+                                     Color(red: 37/255, green: 99/255, blue: 235/255)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 30, height: 30)
+                Text("\(step.number)")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(step.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                if let product = step.product {
+                    Text(product)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color(red: 219/255, green: 234/255, blue: 254/255))
+                        .clipShape(Capsule())
+                }
+                Text(step.description)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                    .lineSpacing(2)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
 
@@ -251,7 +634,10 @@ struct PoolTestResultsView: View {
         VStack(spacing: 0) {
             // MARK: Header
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
+                HStack(alignment: .center) {
+                    Text("Test Results")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(.white)
                     Spacer()
                     Button(action: onDone) {
                         HStack(spacing: 6) {
@@ -264,31 +650,13 @@ struct PoolTestResultsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.bottom, 12)
-
-                Text("Test Results")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.white)
 
                 Text("Pool Water Analysis")
                     .font(.system(size: 14))
                     .foregroundStyle(Color(red: 191/255, green: 219/255, blue: 254/255))
                     .padding(.top, 2)
 
-                // Issue summary badge
-                HStack(spacing: 6) {
-                    let count = analysis.totalIssueCount
-                    Image(systemName: count == 0 ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(count == 0 ? "All clear" : "\(count) issue\(count == 1 ? "" : "s") detected")
-                        .font(.system(size: 13, weight: .semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.2))
-                .clipShape(Capsule())
-                .padding(.top, 10)
+
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -322,22 +690,49 @@ struct PoolTestResultsView: View {
                     .padding(.top, 24)
                     .padding(.bottom, 24)
 
-                    // ── Column chart ──
-                    ParameterColumnChart(entries: [
-                        .init(shortName: "Free Chlorine",     level: analysis.freeChlorine.level,     delay: 0.05),
-                        .init(shortName: "Combined Chlorine", level: analysis.combinedChlorine.level, delay: 0.13),
-                        .init(shortName: "pH",                level: analysis.pH.level,               delay: 0.21),
-                        .init(shortName: "Alkalinity",        level: analysis.alkalinity.level,       delay: 0.29),
-                        .init(shortName: "Stabilizer (CYA)",  level: analysis.stabilizer.level,       delay: 0.37),
-                        .init(shortName: "Phosphates",        level: analysis.phosphates.level,       delay: 0.45),
-                        .init(shortName: "Calcium",           level: analysis.calcium.level,          delay: 0.53),
-                    ])
-                    .padding(.vertical, 20)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 48)
+                    // ── Horizontally scrolling chart cards ──
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ParameterColumnChart(
+                                title: "Balance",
+                                entries: [
+                                    .init(abbrev: "FC",   level: analysis.freeChlorine.level,     delay: 0.05),
+                                    .init(abbrev: "CC",   level: analysis.combinedChlorine.level, delay: 0.10),
+                                    .init(abbrev: "pH",   level: analysis.pH.level,               delay: 0.15),
+                                    .init(abbrev: "ALK",  level: analysis.alkalinity.level,       delay: 0.20),
+                                    .init(abbrev: "CYA",  level: analysis.stabilizer.level,       delay: 0.25),
+                                    .init(abbrev: "CH",   level: analysis.calcium.level,          delay: 0.30),
+                                    .init(abbrev: "PHOS", level: analysis.phosphates.level,       delay: 0.35),
+                                ],
+                                columnSlots: 7
+                            )
+                            .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
+                            ParameterColumnChart(
+                                title: "Metals",
+                                entries: [
+                                    .init(abbrev: "Cu", level: analysis.copper.level,    delay: 0.05),
+                                    .init(abbrev: "Fe", level: analysis.iron.level,      delay: 0.12),
+                                    .init(abbrev: "Mg", level: analysis.magnesium.level, delay: 0.19),
+                                ],
+                                columnSlots: 7
+                            )
+                            .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
+                        }
+                        .scrollTargetLayout()
+                    }
+                    .contentMargins(.horizontal, 20, for: .scrollContent)
+                    .scrollTargetBehavior(.viewAligned)
+                    .padding(.bottom, 20)
+
+                    // ── Pool info + parameter readings ──
+                    PoolInfoCard(formData: formData, analysis: analysis)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+
+                    // ── Next steps ──
+                    NextStepsCard()
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 48)
                 }
             }
             .background(Color(red: 249/255, green: 250/255, blue: 251/255))
