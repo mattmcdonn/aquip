@@ -49,9 +49,12 @@ private struct SummaryCard: View {
         let cardBorder: Color = allClear
             ? Color(red: 134/255, green: 239/255, blue: 172/255)
             : Color(red: 252/255, green: 211/255, blue: 77/255)
+        let boldPart: Text = allClear
+            ? Text("All levels are good,").bold()
+            : Text(verbatim: "\(issueCount) issue\(issueCount == 1 ? "" : "s") found,").bold()
         let label: Text = allClear
-            ? (Text("All levels are good,").bold() + Text(" continue maintaining water"))
-            : (Text("\(issueCount) issue\(issueCount == 1 ? "" : "s") found,").bold() + Text(" review next steps"))
+            ? Text("\(boldPart) continue maintaining water")
+            : Text("\(boldPart) review next steps")
 
         HStack(spacing: 10) {
             ZStack {
@@ -96,6 +99,7 @@ private struct ColumnBar: View {
     let chartHeight: CGFloat
     let idealFraction: CGFloat
     let delay: Double
+    let isVisible: Bool
 
     private let iconAreaHeight: CGFloat = 26
     @State private var animated = false
@@ -157,8 +161,21 @@ private struct ColumnBar: View {
             value: animated
         )
         .onAppear {
+            guard isVisible else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 animated = true
+            }
+        }
+        .onChange(of: isVisible) { _, visible in
+            if visible {
+                animated = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    animated = true
+                }
+            } else {
+                var t = Transaction()
+                t.disablesAnimations = true
+                withTransaction(t) { animated = false }
             }
         }
     }
@@ -177,6 +194,7 @@ private struct ParameterColumnChart: View {
     let title: String
     let entries: [Entry]
     let columnSlots: Int
+    let isVisible: Bool
     private let chartHeight: CGFloat = 90
     private let idealFraction: CGFloat = 0.54
     private let iconAreaHeight: CGFloat = 26
@@ -219,7 +237,8 @@ private struct ParameterColumnChart: View {
                         level: entry.level,
                         chartHeight: chartHeight,
                         idealFraction: idealFraction,
-                        delay: entry.delay
+                        delay: entry.delay,
+                        isVisible: isVisible
                     )
                 }
                 ForEach(0..<trailingSlots, id: \.self) { _ in
@@ -278,6 +297,7 @@ private struct ParameterColumnChart: View {
 private struct WaterTempCard: View {
     let tempString: String
     let tempUnit: String
+    let isVisible: Bool
 
     private var tempFahrenheit: Double? {
         guard let t = Double(tempString) else { return nil }
@@ -359,8 +379,21 @@ private struct WaterTempCard: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.vertical, 16)
             .onAppear {
+                guard isVisible else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     animatedFraction = ringFraction
+                }
+            }
+            .onChange(of: isVisible) { _, visible in
+                if visible {
+                    animatedFraction = 0
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        animatedFraction = ringFraction
+                    }
+                } else {
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { animatedFraction = 0 }
                 }
             }
         }
@@ -541,36 +574,54 @@ private struct PoolInfoCard: View {
         return unit.isEmpty ? raw : "\(raw) \(unit)"
     }
 
+    @State private var isExpanded = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
             // ── Card header ──
-            Text("Parameter Readings")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) { isExpanded.toggle() }
+            } label: {
+                HStack {
+                    Text("Parameter Readings")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
 
-            Divider()
+            if isExpanded {
+                Divider()
 
-            // ── Parameter rows ──
-            VStack(spacing: 0) {
-                ForEach(Array(parameters.enumerated()), id: \.offset) { i, row in
-                    if i > 0 { Divider().padding(.leading, 56) }
-                    paramRow(row)
+                // ── Parameter rows ──
+                VStack(spacing: 0) {
+                    ForEach(Array(parameters.enumerated()), id: \.offset) { i, row in
+                        if i > 0 { Divider().padding(.leading, 56) }
+                        paramRow(row)
+                    }
                 }
-            }
 
-            Divider()
+                Divider()
 
-            // ── Conditions ──
-            tempInfoRow()
-            if formData.sanitizer == "salt" {
-                Divider().padding(.leading, 16)
-                infoRow(label: "Salt Level", value: val(formData.saltLevel, "ppm"))
+                // ── Conditions ──
+                tempInfoRow()
+                if formData.sanitizer == "salt" {
+                    Divider().padding(.leading, 16)
+                    infoRow(label: "Salt Level", value: val(formData.saltLevel, "ppm"))
+                }
+                Spacer().frame(height: 6)
             }
-            Spacer().frame(height: 6)
         }
+        .clipped()
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
@@ -678,89 +729,82 @@ private struct PoolInfoCard: View {
 
 private struct NextStepsCard: View {
 
-    private struct Step {
-        let number: Int
-        let title: String
-        let product: String?
-        let description: String
-    }
+    let steps: [TreatmentStep]
 
-    private let steps: [Step] = [
-        Step(number: 1,
-             title: "Add alkalinity increaser (sodium bicarbonate)",
-             product: "Sodium Bicarbonate / Alkalinity Up",
-             description: "Stabilizes pH levels and prevents rapid pH fluctuations"),
-        Step(number: 2,
-             title: "Wait 4–6 hours and retest pH and alkalinity",
-             product: nil,
-             description: "Allow chemicals to circulate and stabilize before proceeding"),
-        Step(number: 3,
-             title: "Add calcium chloride",
-             product: "Calcium Chloride",
-             description: "Raises calcium hardness to prevent corrosive water and equipment damage"),
-    ]
+    @State private var isExpanded = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // ── Gradient header ──
-            HStack(spacing: 10) {
-                Image(systemName: "list.number")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text("Next Steps Action Plan")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                Spacer()
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(
-                LinearGradient(
-                    colors: [Color(red: 37/255, green: 99/255, blue: 235/255),
-                             Color(red: 6/255, green: 182/255, blue: 212/255)],
-                    startPoint: .leading, endPoint: .trailing
+            // ── Gradient header (tappable) ──
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "list.number")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Next Steps Action Plan")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: [Color(red: 37/255, green: 99/255, blue: 235/255),
+                                 Color(red: 6/255, green: 182/255, blue: 212/255)],
+                        startPoint: .leading, endPoint: .trailing
+                    )
                 )
-            )
-            .clipShape(UnevenRoundedRectangle(
-                topLeadingRadius: 16, bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0, topTrailingRadius: 16
-            ))
+                .clipShape(UnevenRoundedRectangle(
+                    topLeadingRadius: 16,
+                    bottomLeadingRadius: isExpanded ? 0 : 16,
+                    bottomTrailingRadius: isExpanded ? 0 : 16,
+                    topTrailingRadius: 16
+                ))
+            }
+            .buttonStyle(.plain)
 
             // ── Body ──
-            VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Follow these steps in order:")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
-                    Text("Complete each step before moving to the next")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, 12)
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Follow these steps in order:")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                        Text("Complete each step before moving to the next. Never add multiple chemicals at the same time.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                            .lineSpacing(2)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 12)
 
-                Divider()
+                    Divider()
 
-                ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
-                    if i > 0 { Divider().padding(.leading, 58) }
-                    stepRow(step)
+                    ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                        if i > 0 { Divider().padding(.leading, 58) }
+                        stepRow(step)
+                    }
                 }
+                .background(Color.white)
+                .clipShape(UnevenRoundedRectangle(
+                    topLeadingRadius: 0, bottomLeadingRadius: 16,
+                    bottomTrailingRadius: 16, topTrailingRadius: 0
+                ))
             }
-            .background(Color.white)
-            .clipShape(UnevenRoundedRectangle(
-                topLeadingRadius: 0, bottomLeadingRadius: 16,
-                bottomTrailingRadius: 16, topTrailingRadius: 0
-            ))
         }
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
 
     @ViewBuilder
-    private func stepRow(_ step: Step) -> some View {
+    private func stepRow(_ step: TreatmentStep) -> some View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
                 Circle()
@@ -772,7 +816,7 @@ private struct NextStepsCard: View {
                         )
                     )
                     .frame(width: 30, height: 30)
-                Text("\(step.number)")
+                Text("\(step.id)")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
             }
@@ -810,6 +854,8 @@ struct PoolTestResultsView: View {
     private var analysis: PoolAnalysis {
         PoolChemistryEngine.analyze(formData)
     }
+
+    @State private var scrolledChartID: Int? = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -887,14 +933,18 @@ struct PoolTestResultsView: View {
                                     .init(abbrev: "CH",   level: analysis.calcium.level,          delay: 0.30),
                                     .init(abbrev: "PHOS", level: analysis.phosphates.level,       delay: 0.35),
                                 ],
-                                columnSlots: 7
+                                columnSlots: 7,
+                                isVisible: scrolledChartID == 0
                             )
                             .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
+                            .id(0)
                             WaterTempCard(
                                 tempString: formData.waterTemp,
-                                tempUnit: formData.tempUnit
+                                tempUnit: formData.tempUnit,
+                                isVisible: scrolledChartID == 1
                             )
                             .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
+                            .id(1)
                             ParameterColumnChart(
                                 title: "Metals",
                                 entries: [
@@ -902,14 +952,17 @@ struct PoolTestResultsView: View {
                                     .init(abbrev: "Fe", level: analysis.iron.level,      delay: 0.12),
                                     .init(abbrev: "Mg", level: analysis.magnesium.level, delay: 0.19),
                                 ],
-                                columnSlots: 7
+                                columnSlots: 7,
+                                isVisible: scrolledChartID == 2
                             )
                             .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
+                            .id(2)
                         }
                         .scrollTargetLayout()
                     }
                     .contentMargins(.horizontal, 28, for: .scrollContent)
                     .scrollTargetBehavior(.viewAligned)
+                    .scrollPosition(id: $scrolledChartID)
                     .padding(.bottom, 20)
 
                     // ── Pool info + parameter readings ──
@@ -918,9 +971,12 @@ struct PoolTestResultsView: View {
                         .padding(.bottom, 20)
 
                     // ── Next steps ──
-                    NextStepsCard()
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 48)
+                    let treatmentSteps = PoolTreatmentPlanner.steps(formData: formData, analysis: analysis)
+                    if !treatmentSteps.isEmpty {
+                        NextStepsCard(steps: treatmentSteps)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 48)
+                    }
                 }
             }
             .background(Color(red: 249/255, green: 250/255, blue: 251/255))
