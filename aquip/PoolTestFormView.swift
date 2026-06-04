@@ -1313,12 +1313,12 @@ struct PoolTestFormView: View {
                 .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
 
             let algaeOptions: [(value: String, label: String, color: Color)] = [
-                ("green", "Green Algae", Color(red: 34/255, green: 197/255, blue: 94/255)),
-                ("black", "Black Algae", Color(red: 31/255, green: 41/255, blue: 55/255)),
-                ("pink", "Pink Algae", Color(red: 244/255, green: 114/255, blue: 182/255)),
-                ("mustard", "Mustard Algae", Color(red: 234/255, green: 179/255, blue: 8/255)),
-                ("white", "White Algae", Color(red: 229/255, green: 231/255, blue: 235/255)),
-                ("invisible", "Invisible Algae", Color(red: 147/255, green: 197/255, blue: 253/255))
+                ("green",     "Green Algae",    Color(red: 34/255,  green: 197/255, blue: 94/255)),
+                ("mustard",   "Mustard Algae",  Color(red: 234/255, green: 179/255, blue: 8/255)),
+                ("black",     "Black Algae",    Color(red: 31/255,  green: 41/255,  blue: 55/255)),
+                ("pink",      "Pink Algae",     Color(red: 244/255, green: 114/255, blue: 182/255)),
+                ("white",     "White Algae",    Color(red: 180/255, green: 180/255, blue: 190/255)),
+                ("invisible", "Invisible /\nChlorine Demand", Color(red: 147/255, green: 197/255, blue: 253/255))
             ]
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -1327,35 +1327,34 @@ struct PoolTestFormView: View {
                     Button {
                         formData.algaeType = option.value
                     } label: {
-                        HStack(spacing: 10) {
+                        VStack(spacing: 10) {
                             Circle()
                                 .fill(option.color)
-                                .frame(width: 16, height: 16)
+                                .frame(width: 40, height: 40)
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white, lineWidth: isSelected ? 2 : 0)
+                                        .stroke(Color.white, lineWidth: isSelected ? 3 : 0)
                                 )
-                                .shadow(color: option.color.opacity(0.35), radius: 3, x: 0, y: 1)
+                                .shadow(color: option.color.opacity(0.4), radius: 4, x: 0, y: 2)
 
                             Text(option.label)
-                                .font(.system(size: 14, weight: .medium))
+                                .font(.system(size: 13, weight: .medium))
                                 .foregroundStyle(
-                                    isSelected ? Color(red: 17/255, green: 24/255, blue: 39/255)
-                                    : Color(red: 55/255, green: 65/255, blue: 81/255)
+                                    isSelected ? option.color
+                                               : Color(red: 55/255, green: 65/255, blue: 81/255)
                                 )
-                                .multilineTextAlignment(.leading)
-
-                            Spacer(minLength: 0)
+                                .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 12)
                         .padding(.vertical, 16)
-                        .background(isSelected ? Color(red: 239/255, green: 246/255, blue: 255/255) : Color.white)
+                        .background(
+                            isSelected ? option.color.opacity(0.1) : Color.white
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(
-                                    isSelected ? Color(red: 37/255, green: 99/255, blue: 235/255)
-                                    : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                    isSelected ? option.color
+                                               : Color(red: 229/255, green: 231/255, blue: 235/255),
                                     lineWidth: isSelected ? 2 : 1
                                 )
                         )
@@ -1365,6 +1364,51 @@ struct PoolTestFormView: View {
                     .animation(.easeInOut(duration: 0.15), value: isSelected)
                 }
             }
+
+            // No algae — full-width option at the bottom
+            let noSelected = formData.algaeType == "none"
+            Button {
+                formData.algaeType = "none"
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(red: 220/255, green: 252/255, blue: 231/255))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 22/255, green: 163/255, blue: 74/255))
+                    }
+                    Text("No Algae")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(
+                            noSelected ? Color(red: 22/255, green: 163/255, blue: 74/255)
+                                       : Color(red: 55/255, green: 65/255, blue: 81/255)
+                        )
+                    Spacer()
+                    if noSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Color(red: 22/255, green: 163/255, blue: 74/255))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    noSelected ? Color(red: 220/255, green: 252/255, blue: 231/255).opacity(0.5) : Color.white
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(
+                            noSelected ? Color(red: 22/255, green: 163/255, blue: 74/255)
+                                       : Color(red: 229/255, green: 231/255, blue: 235/255),
+                            lineWidth: noSelected ? 2 : 1
+                        )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+            .animation(.easeInOut(duration: 0.15), value: noSelected)
         }
     }
 
