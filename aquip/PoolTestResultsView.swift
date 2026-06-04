@@ -849,33 +849,51 @@ private struct NextStepsCard: View {
 
 struct PoolTestResultsView: View {
     let formData: PoolFormData
-    let onDone: () -> Void
+    var onDone: (() -> Void)? = nil
+    var backAction: (() -> Void)? = nil
 
     private var analysis: PoolAnalysis {
         PoolChemistryEngine.analyze(formData)
     }
 
     @State private var scrolledChartID: Int? = 0
+    @State private var showDoneConfirm = false
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack {
+            VStack(spacing: 0) {
             // MARK: Header
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center) {
+                    if let back = backAction {
+                        Button(action: back) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Back")
+                                    .font(.system(size: 15, weight: .medium))
+                            }
+                            .foregroundStyle(.white.opacity(0.9))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 8)
+                    }
                     Text("Test Results")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(.white)
                     Spacer()
-                    Button(action: onDone) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                            Text("Done")
-                                .font(.system(size: 15, weight: .medium))
+                    if backAction == nil {
+                        Button(action: { showDoneConfirm = true }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("Done")
+                                    .font(.system(size: 15, weight: .medium))
+                            }
+                            .foregroundStyle(.white.opacity(0.9))
                         }
-                        .foregroundStyle(.white.opacity(0.9))
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
 
                 Text("Pool Water Analysis")
@@ -980,7 +998,93 @@ struct PoolTestResultsView: View {
                 }
             }
             .background(Color(red: 249/255, green: 250/255, blue: 251/255))
-        }
+            } // end VStack
+            .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+
+            // Done confirm popup
+            if showDoneConfirm {
+                DoneViewingConfirmPopup(
+                    onCancel: {
+                        withAnimation(.easeIn(duration: 0.18)) { showDoneConfirm = false }
+                    },
+                    onConfirm: {
+                        withAnimation(.easeIn(duration: 0.18)) { showDoneConfirm = false }
+                        onDone?()
+                    }
+                )
+                .zIndex(10)
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            }
+        } // end ZStack
+        .animation(.easeOut(duration: 0.2), value: showDoneConfirm)
         .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+    }
+}
+
+// MARK: - Done viewing confirm popup
+
+private struct DoneViewingConfirmPopup: View {
+    var onCancel: () -> Void
+    var onConfirm: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 219/255, green: 234/255, blue: 254/255))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                }
+                .padding(.top, 28)
+                .padding(.bottom, 16)
+
+                Text("Done Viewing?")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+                    .padding(.bottom, 10)
+
+                Text("Are you sure you're done viewing your test results? You can always find them again in your test history.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+
+                Divider()
+
+                HStack(spacing: 0) {
+                    Button(action: onCancel) {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+
+                    Divider()
+                        .frame(height: 52)
+
+                    Button(action: onConfirm) {
+                        Text("Done")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
+            .padding(.horizontal, 40)
+        }
     }
 }

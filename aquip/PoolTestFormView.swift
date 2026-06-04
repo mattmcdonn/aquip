@@ -17,7 +17,7 @@ private enum PoolFormStep {
     case chemicalReadings
 }
 
-struct PoolFormData {
+struct PoolFormData: Codable, Hashable {
     var savedPool: String = "none"
     var volumeUnit: String = "gallons"
     var volume: String = ""

@@ -7,6 +7,7 @@ enum Tab {
 struct ContentView: View {
     @State private var selectedTab: Tab = .test
     @State private var store = WaterBodyStore()
+    @State private var historyStore = TestHistoryStore()
     @State private var isInTestQuestionnaire = false
     @State private var showTestExitConfirm = false
     @State private var pendingTab: Tab? = nil
@@ -71,6 +72,7 @@ struct ContentView: View {
         .ignoresSafeArea(.all, edges: .top)
         .ignoresSafeArea(.keyboard)
         .environment(store)
+        .environment(historyStore)
     }
 }
 
