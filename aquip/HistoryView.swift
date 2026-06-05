@@ -20,7 +20,7 @@ struct HistoryView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
-                .padding(.top, 72)
+                .padding(.top, 20)
                 .padding(.bottom, 32)
                 .background(
                     LinearGradient(
@@ -31,6 +31,7 @@ struct HistoryView: View {
                         startPoint: .leading,
                         endPoint: .trailing
                     )
+                    .ignoresSafeArea(edges: .top)
                 )
 
                 if historyStore.records.isEmpty {
@@ -75,7 +76,8 @@ struct HistoryView: View {
             .navigationDestination(item: $selectedRecord) { record in
                 PoolTestResultsView(
                     formData: record.formData,
-                    backAction: { selectedRecord = nil }
+                    backAction: { selectedRecord = nil },
+                    recordID: record.id
                 )
                 .toolbar(.hidden, for: .navigationBar)
             }

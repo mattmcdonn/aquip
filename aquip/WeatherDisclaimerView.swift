@@ -6,6 +6,7 @@ struct WeatherPillButton: View {
     var testType: String?
     @State private var weatherService = WeatherService()
     @State private var isSheetOpen = false
+    @Environment(AppSettings.self) private var settings
 
     var body: some View {
         Button {
@@ -36,7 +37,7 @@ struct WeatherPillButton: View {
                 .clipShape(Circle())
 
                 // Temperature
-                Text(weatherService.isLoading ? "···" : weatherService.temperatureDisplay)
+                Text(weatherService.isLoading ? "···" : weatherService.displayTemperature(settings: settings))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
                     .padding(.horizontal, 7)
@@ -138,6 +139,7 @@ struct WeatherSheetView: View {
     @Binding var isPresented: Bool
     var screenHeight: CGFloat
     var onDismiss: () -> Void
+    @Environment(AppSettings.self) private var settings
 
     var body: some View {
         VStack(spacing: 0) {
@@ -202,7 +204,7 @@ struct WeatherSheetView: View {
                                 .foregroundStyle(weatherService.isAvailable
                                                  ? Color(red: 37/255, green: 99/255, blue: 235/255)
                                                  : Color(.systemGray3))
-                            Text(weatherService.isLoading ? "···" : weatherService.temperatureDisplay)
+                            Text(weatherService.isLoading ? "···" : weatherService.displayTemperature(settings: settings))
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(weatherService.isAvailable
                                                  ? Color(red: 55/255, green: 65/255, blue: 81/255)
@@ -297,6 +299,7 @@ struct WeatherSheetView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     // ── Temperature Effects section ──
+                    let isFahrenheit = settings.temperatureUnit == "fahrenheit"
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Temperature Effects")
                             .font(.system(size: 16, weight: .semibold))
@@ -308,7 +311,7 @@ struct WeatherSheetView: View {
                             iconBg: Color(red: 207/255, green: 250/255, blue: 254/255),
                             cardBg: Color(red: 236/255, green: 254/255, blue: 255/255),
                             cardBorder: Color(red: 165/255, green: 243/255, blue: 252/255),
-                            title: "Cold (<60°F)",
+                            title: isFahrenheit ? "Cold (<60°F)" : "Cold (<16°C)",
                             description: "Chlorine dissipates slowly. Chemical reactions are slower, requiring less frequent adjustments."
                         )
 
@@ -318,7 +321,7 @@ struct WeatherSheetView: View {
                             iconBg: Color(red: 220/255, green: 252/255, blue: 231/255),
                             cardBg: Color(red: 240/255, green: 253/255, blue: 244/255),
                             cardBorder: Color(red: 187/255, green: 247/255, blue: 208/255),
-                            title: "Ideal (60–75°F)",
+                            title: isFahrenheit ? "Ideal (60–75°F)" : "Ideal (16–24°C)",
                             description: "Optimal temperature range for balanced chemistry. Standard testing schedule is sufficient."
                         )
 
@@ -328,7 +331,7 @@ struct WeatherSheetView: View {
                             iconBg: Color(red: 255/255, green: 237/255, blue: 213/255),
                             cardBg: Color(red: 255/255, green: 247/255, blue: 237/255),
                             cardBorder: Color(red: 254/255, green: 215/255, blue: 170/255),
-                            title: "Warm (75–90°F)",
+                            title: isFahrenheit ? "Warm (75–90°F)" : "Warm (24–32°C)",
                             description: "Chlorine evaporates faster and bacteria multiply quicker. Test 2–3 times per week and maintain higher chlorine levels."
                         )
 
@@ -338,7 +341,7 @@ struct WeatherSheetView: View {
                             iconBg: Color(red: 254/255, green: 226/255, blue: 226/255),
                             cardBg: Color(red: 255/255, green: 241/255, blue: 242/255),
                             cardBorder: Color(red: 254/255, green: 202/255, blue: 202/255),
-                            title: "Hot (>90°F)",
+                            title: isFahrenheit ? "Hot (>90°F)" : "Hot (>32°C)",
                             description: "Extreme chlorine loss and rapid bacteria growth. Test daily and consider shock treatment more frequently."
                         )
                     }

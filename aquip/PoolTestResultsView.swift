@@ -298,10 +298,17 @@ private struct WaterTempCard: View {
     let tempString: String
     let tempUnit: String
     let isVisible: Bool
+    @Environment(AppSettings.self) private var settings
+
+    // Always resolve celsius internally for ring/category logic.
+    private var tempCelsius: Double? {
+        guard let t = Double(tempString) else { return nil }
+        return tempUnit == "celsius" ? t : (t - 32) * 5 / 9
+    }
 
     private var tempFahrenheit: Double? {
-        guard let t = Double(tempString) else { return nil }
-        return tempUnit == "celsius" ? t * 9/5 + 32 : t
+        guard let c = tempCelsius else { return nil }
+        return c * 9 / 5 + 32
     }
 
     private var tempCategory: (label: String, color: Color) {
@@ -329,8 +336,19 @@ private struct WaterTempCard: View {
     var body: some View {
         let color = tempCategory.color
         let label = tempCategory.label
-        let displayTemp = tempString.isEmpty ? "—" : tempString
-        let unit = tempUnit == "celsius" ? "°C" : "°F"
+        // Display temperature in the user's preferred unit
+        let displayTemp: String = {
+            if tempString.isEmpty { return "—" }
+            if let c = tempCelsius {
+                if settings.temperatureUnit == "fahrenheit" {
+                    return String(Int((c * 9/5 + 32).rounded()))
+                } else {
+                    return String(Int(c.rounded()))
+                }
+            }
+            return tempString
+        }()
+        let unit = settings.temperatureUnit == "fahrenheit" ? "°F" : "°C"
 
         VStack(alignment: .leading, spacing: 0) {
             // Title row
@@ -408,6 +426,7 @@ private struct WaterTempCard: View {
 private struct PoolQuickInfoCard: View {
     let formData: PoolFormData
     @Environment(WaterBodyStore.self) private var store
+    @Environment(AppSettings.self) private var settings
 
     private var poolName: String {
         guard formData.savedPool != "none",
@@ -417,9 +436,14 @@ private struct PoolQuickInfoCard: View {
     }
 
     private var volumeDisplay: String {
-        guard !formData.volume.isEmpty else { return "—" }
-        let unit = formData.volumeUnit == "liters" ? "L" : "gal"
-        return "\(formData.volume) \(unit)"
+        guard !formData.volume.isEmpty, let rawVal = Double(formData.volume) else { return "—" }
+        let litres: Double
+        if formData.volumeUnit == "liters" {
+            litres = rawVal
+        } else {
+            litres = rawVal * 3.78541  // legacy gallons record
+        }
+        return settings.displayVolume(litres: litres)
     }
 
     private var sanitizerIcon: String {
@@ -501,6 +525,7 @@ private struct PoolInfoCard: View {
     let formData: PoolFormData
     let analysis: PoolAnalysis
     @Environment(WaterBodyStore.self) private var store
+    @Environment(AppSettings.self) private var settings
 
     private var poolName: String {
         guard formData.savedPool != "none",
@@ -510,9 +535,14 @@ private struct PoolInfoCard: View {
     }
 
     private var volumeDisplay: String {
-        guard !formData.volume.isEmpty else { return "—" }
-        let unit = formData.volumeUnit == "liters" ? "L" : "gal"
-        return "\(formData.volume) \(unit)"
+        guard !formData.volume.isEmpty, let rawVal = Double(formData.volume) else { return "—" }
+        let litres: Double
+        if formData.volumeUnit == "liters" {
+            litres = rawVal
+        } else {
+            litres = rawVal * 3.78541  // legacy gallons record
+        }
+        return settings.displayVolume(litres: litres)
     }
 
     private var sanitizerInfo: (label: String, icon: String, color: Color) {
@@ -524,9 +554,14 @@ private struct PoolInfoCard: View {
     }
 
     private var waterTempDisplay: String {
-        guard !formData.waterTemp.isEmpty else { return "—" }
-        let unit = formData.tempUnit == "celsius" ? "°C" : "°F"
-        return "\(formData.waterTemp) \(unit)"
+        guard !formData.waterTemp.isEmpty, let rawTemp = Double(formData.waterTemp) else { return "—" }
+        // Always stored as celsius after migration; legacy may be fahrenheit
+        let celsius = formData.tempUnit == "celsius" ? rawTemp : (rawTemp - 32) * 5 / 9
+        if settings.temperatureUnit == "fahrenheit" {
+            return "\(Int((celsius * 9/5 + 32).rounded()))°F"
+        } else {
+            return "\(Int(celsius.rounded()))°C"
+        }
     }
 
     private var combinedChlorineDisplay: String {
@@ -845,12 +880,82 @@ private struct NextStepsCard: View {
     }
 }
 
+// MARK: - Delete test record popup
+
+private struct DeleteTestRecordPopup: View {
+    var onCancel: () -> Void
+    var onDelete: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5).ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 254/255, green: 226/255, blue: 226/255))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(Color(red: 220/255, green: 38/255, blue: 38/255))
+                }
+                .padding(.top, 28)
+                .padding(.bottom, 16)
+
+                Text("Delete Test Result?")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+                    .padding(.bottom, 10)
+
+                Text("Are you sure you want to delete this test result? This action cannot be undone.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+
+                Divider()
+
+                HStack(spacing: 0) {
+                    Button(action: onCancel) {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+
+                    Divider().frame(height: 52)
+
+                    Button(action: onDelete) {
+                        Text("Yes, Delete")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color(red: 220/255, green: 38/255, blue: 38/255))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
+            .padding(.horizontal, 40)
+        }
+    }
+}
+
 // MARK: - Results view
 
 struct PoolTestResultsView: View {
     let formData: PoolFormData
     var onDone: (() -> Void)? = nil
     var backAction: (() -> Void)? = nil
+    var recordID: UUID? = nil
+
+    @Environment(AppSettings.self) private var settings
+    @Environment(TestHistoryStore.self) private var historyStore
 
     private var analysis: PoolAnalysis {
         PoolChemistryEngine.analyze(formData)
@@ -858,13 +963,15 @@ struct PoolTestResultsView: View {
 
     @State private var scrolledChartID: Int? = 0
     @State private var showDoneConfirm = false
+    @State private var showDeleteConfirm = false
 
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
             // MARK: Header
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center) {
+                // Top row: back button (left) + delete/done button (right)
+                HStack {
                     if let back = backAction {
                         Button(action: back) {
                             HStack(spacing: 4) {
@@ -876,13 +983,21 @@ struct PoolTestResultsView: View {
                             .foregroundStyle(.white.opacity(0.9))
                         }
                         .buttonStyle(.plain)
-                        .padding(.trailing, 8)
                     }
-                    Text("Test Results")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(.white)
                     Spacer()
-                    if backAction == nil {
+                    if backAction != nil && recordID != nil {
+                        // Delete button when viewing from history
+                        Button(action: { showDeleteConfirm = true }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Color.white.opacity(0.22))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                    } else if backAction == nil {
+                        // Done button when viewing fresh results
                         Button(action: { showDoneConfirm = true }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark")
@@ -895,18 +1010,21 @@ struct PoolTestResultsView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                .padding(.bottom, 14)
+
+                Text("Test Results")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.white)
 
                 Text("Pool Water Analysis")
                     .font(.system(size: 14))
                     .foregroundStyle(Color(red: 191/255, green: 219/255, blue: 254/255))
                     .padding(.top, 2)
-
-
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.top, 72)
-            .padding(.bottom, 24)
+            .padding(.top, 10)
+            .padding(.bottom, 20)
             .background(
                 LinearGradient(
                     colors: [
@@ -916,6 +1034,7 @@ struct PoolTestResultsView: View {
                     startPoint: .leading,
                     endPoint: .trailing
                 )
+                .ignoresSafeArea(edges: .top)
             )
 
             // MARK: Cards
@@ -993,13 +1112,32 @@ struct PoolTestResultsView: View {
                     if !treatmentSteps.isEmpty {
                         NextStepsCard(steps: treatmentSteps)
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 48)
                     }
+                    // Bottom spacer so content clears the tab bar
+                    Color.clear.frame(height: 120)
                 }
             }
             .background(Color(red: 249/255, green: 250/255, blue: 251/255))
             } // end VStack
             .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+
+            // Delete confirm popup (from history view)
+            if showDeleteConfirm {
+                DeleteTestRecordPopup(
+                    onCancel: {
+                        withAnimation(.easeIn(duration: 0.18)) { showDeleteConfirm = false }
+                    },
+                    onDelete: {
+                        withAnimation(.easeIn(duration: 0.18)) { showDeleteConfirm = false }
+                        if let id = recordID {
+                            historyStore.delete(id: id)
+                        }
+                        backAction?()
+                    }
+                )
+                .zIndex(10)
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            }
 
             // Done confirm popup
             if showDoneConfirm {
@@ -1017,7 +1155,9 @@ struct PoolTestResultsView: View {
             }
         } // end ZStack
         .animation(.easeOut(duration: 0.2), value: showDoneConfirm)
+        .animation(.easeOut(duration: 0.2), value: showDeleteConfirm)
         .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+        .navigationBarHidden(true)
     }
 }
 

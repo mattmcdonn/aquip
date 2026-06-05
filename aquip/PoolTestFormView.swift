@@ -488,6 +488,7 @@ struct PoolTestFormView: View {
     var onComplete: (PoolFormData) -> Void
 
     @Environment(WaterBodyStore.self) private var store
+    @Environment(AppSettings.self) private var settings
 
     @State private var currentStep = 1
     @State private var formData = PoolFormData()
@@ -549,7 +550,7 @@ struct PoolTestFormView: View {
         case .savedConfig:
             return !formData.savedPool.isEmpty
         case .details:
-            let base = !formData.volumeUnit.isEmpty && !formData.volume.isEmpty
+            let base = !formData.volume.isEmpty
                 && !formData.waterSource.isEmpty
             return testType == .spa ? base : base && !formData.hasHeater.isEmpty
         case .sanitizer:
@@ -597,7 +598,8 @@ struct PoolTestFormView: View {
 
     private var computedVolumeLiters: Double {
         let val = Double(formData.volume) ?? 0
-        return formData.volumeUnit == "liters" ? val : val * 3.78541
+        // settings.volumeUnit is the display unit; store always in litres
+        return settings.volumeUnit == "gallons" ? val * 3.78541 : val
     }
 
     private func saveNewWaterBody(name: String) {
@@ -605,7 +607,7 @@ struct PoolTestFormView: View {
             name: name,
             type: testType == .spa ? "spa" : "pool",
             volumeLiters: computedVolumeLiters,
-            volumeUnit: formData.volumeUnit,
+            volumeUnit: "liters",  // always store as liters internally
             hasHeater: formData.hasHeater == "yes",
             waterSource: formData.waterSource,
             sanitizer: formData.sanitizer
@@ -842,9 +844,10 @@ struct PoolTestFormView: View {
         .fullScreenCover(isPresented: $showVolumeCalc) {
             PoolVolumeCalculatorCover(
                 isPresented: $showVolumeCalc,
-                onApply: { volume, unit in
+                onApply: { volume, _ in
+                    // Volume calculator always returns in the settings unit
                     formData.volume = volume
-                    formData.volumeUnit = unit
+                    formData.volumeUnit = settings.volumeUnit == "gallons" ? "gallons" : "liters"
                 }
             )
             .presentationBackground(.clear)
@@ -910,20 +913,10 @@ struct PoolTestFormView: View {
                     .clipShape(Capsule())
             }
 
-            FormMenuPicker(
-                label: "Volume Unit",
-                placeholder: "Select unit",
-                selection: $formData.volumeUnit,
-                options: [
-                    ("gallons", "Gallons"),
-                    ("liters", "Liters")
-                ]
-            )
-
             FormNumberInput(
                 label: testType == .spa ? "Spa Volume" : "Pool Volume",
                 placeholder: testType == .spa ? "Enter spa volume" : "Enter pool volume",
-                unit: formData.volumeUnit == "liters" ? "L" : "gal",
+                unit: settings.volumeUnitLabel,
                 value: $formData.volume
             )
 
@@ -1070,54 +1063,20 @@ struct PoolTestFormView: View {
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
 
-            // °F / °C toggle
-            HStack(spacing: 0) {
-                ForEach([("fahrenheit", "°F  Fahrenheit"), ("celsius", "°C  Celsius")], id: \.0) { value, label in
-                    Button { formData.tempUnit = value } label: {
-                        Text(label)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(
-                                formData.tempUnit == value
-                                ? .white
-                                : Color(red: 107/255, green: 114/255, blue: 128/255)
-                            )
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(
-                                Group {
-                                    if formData.tempUnit == value {
-                                        LinearGradient(
-                                            colors: [
-                                                Color(red: 37/255, green: 99/255, blue: 235/255),
-                                                Color(red: 6/255, green: 182/255, blue: 212/255)
-                                            ],
-                                            startPoint: .leading, endPoint: .trailing
-                                        )
-                                    } else {
-                                        LinearGradient(colors: [.clear, .clear], startPoint: .leading, endPoint: .trailing)
-                                    }
-                                }
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 9))
-                    }
-                    .buttonStyle(.plain)
-                    .animation(.easeInOut(duration: 0.15), value: formData.tempUnit)
-                }
-            }
-            .padding(4)
-            .background(Color(red: 243/255, green: 244/255, blue: 246/255))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-
             FormNumberInput(
                 label: "Current Water Temperature",
                 placeholder: "Best guess if unsure",
-                unit: formData.tempUnit == "celsius" ? "°C" : "°F",
+                unit: settings.temperatureUnitSymbol,
                 value: $formData.waterTemp
             )
 
             Text("Enter your best estimate if you don't have an exact reading.")
                 .font(.system(size: 13))
                 .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+        }
+        .onAppear {
+            // Keep formData.tempUnit in sync with the global setting
+            formData.tempUnit = settings.temperatureUnit
         }
     }
 

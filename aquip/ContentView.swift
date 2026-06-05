@@ -8,10 +8,12 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .test
     @State private var store = WaterBodyStore()
     @State private var historyStore = TestHistoryStore()
+    @State private var settings = AppSettings()
     @State private var isInTestQuestionnaire = false
     @State private var showTestExitConfirm = false
     @State private var pendingTab: Tab? = nil
     @State private var shouldResetTestFlow = false
+    @State private var showTermsPopup = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -67,12 +69,35 @@ struct ContentView: View {
                 .zIndex(10)
                 .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
+
+            // Terms & Conditions popup — blocks app usage until agreed
+            if showTermsPopup {
+                TermsAgreementPopup {
+                    settings.hasAgreedToTerms = true
+                    settings.save()
+                    withAnimation(.easeIn(duration: 0.18)) { showTermsPopup = false }
+                }
+                .zIndex(20)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
         }
         .animation(.easeOut(duration: 0.2), value: showTestExitConfirm)
+        .animation(.easeOut(duration: 0.2), value: showTermsPopup)
         .ignoresSafeArea(.all, edges: .top)
         .ignoresSafeArea(.keyboard)
         .environment(store)
         .environment(historyStore)
+        .environment(settings)
+        .onAppear {
+            if !settings.hasAgreedToTerms {
+                showTermsPopup = true
+            }
+        }
+        .onChange(of: settings.hasAgreedToTerms) { _, agreed in
+            if !agreed {
+                withAnimation(.easeOut(duration: 0.2)) { showTermsPopup = true }
+            }
+        }
     }
 }
 

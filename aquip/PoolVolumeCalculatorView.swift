@@ -63,6 +63,7 @@ struct PoolVolumeCalculatorPanel: View {
     var onClose: () -> Void
     var onApply: (String, String) -> Void
 
+    @Environment(AppSettings.self) private var settings
     @State private var selectedShape = ""
     @State private var unit          = "gallons"
 
@@ -114,7 +115,7 @@ struct PoolVolumeCalculatorPanel: View {
 
     private var displayedValue: String {
         guard let gal = calculatedGallons else { return "" }
-        let val = unit == "liters" ? gal * 3.78541 : gal
+        let val = settings.volumeUnit == "gallons" ? gal : gal * 3.78541
         return String(format: "%.0f", val)
     }
 
@@ -196,48 +197,10 @@ struct PoolVolumeCalculatorPanel: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
 
-                        // Gallons / Liters toggle
-                        HStack(spacing: 0) {
-                            ForEach([("gallons", "Gallons"), ("liters", "Liters")], id: \.0) { value, label in
-                                Button { unit = value } label: {
-                                    Text(label)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(
-                                            unit == value
-                                            ? .white
-                                            : Color(red: 107/255, green: 114/255, blue: 128/255)
-                                        )
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 9)
-                                        .background(
-                                            Group {
-                                                if unit == value {
-                                                    LinearGradient(
-                                                        colors: [
-                                                            Color(red: 37/255, green: 99/255, blue: 235/255),
-                                                            Color(red: 6/255, green: 182/255, blue: 212/255)
-                                                        ],
-                                                        startPoint: .leading,
-                                                        endPoint: .trailing
-                                                    )
-                                                } else {
-                                                    LinearGradient(
-                                                        colors: [.clear, .clear],
-                                                        startPoint: .leading,
-                                                        endPoint: .trailing
-                                                    )
-                                                }
-                                            }
-                                        )
-                                        .clipShape(RoundedRectangle(cornerRadius: 9))
-                                }
-                                .buttonStyle(.plain)
-                                .animation(.easeInOut(duration: 0.15), value: unit)
-                            }
-                        }
-                        .padding(4)
-                        .background(Color(red: 243/255, green: 244/255, blue: 246/255))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        // Unit label (derived from settings — no toggle needed)
+                        Text("Unit: \(settings.volumeUnitLong)")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
 
                         // Read-only result box
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -249,7 +212,7 @@ struct PoolVolumeCalculatorPanel: View {
                                     : Color(red: 17/255, green: 24/255, blue: 39/255)
                                 )
                             Spacer()
-                            Text(unit == "liters" ? "litres" : "gallons")
+                            Text(settings.volumeUnit == "gallons" ? "gallons" : "litres")
                                 .font(.system(size: 15))
                                 .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
                         }
@@ -266,7 +229,7 @@ struct PoolVolumeCalculatorPanel: View {
                     // Use This Volume button
                     Button {
                         guard !displayedValue.isEmpty else { return }
-                        onApply(displayedValue, unit)
+                        onApply(displayedValue, settings.volumeUnit)
                     } label: {
                         Text("Use This Volume")
                             .font(.system(size: 16, weight: .semibold))
@@ -313,6 +276,9 @@ struct PoolVolumeCalculatorPanel: View {
         .frame(maxHeight: screenHeight * 0.85)
         .background(Color.white)
         .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
+        .onAppear {
+            unit = settings.volumeUnit == "gallons" ? "gallons" : "liters"
+        }
     }
 
     private func shapeButton(value: String, label: String) -> some View {

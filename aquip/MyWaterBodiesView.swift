@@ -168,6 +168,7 @@ private struct DetailInfoRow: View {
 
 struct WaterBodyDetailView: View {
     @Environment(WaterBodyStore.self) private var store
+    @Environment(AppSettings.self) private var settings
 
     let waterBodyID: UUID
     var onBack: () -> Void
@@ -180,14 +181,7 @@ struct WaterBodyDetailView: View {
 
     private var displayVolume: String {
         guard let wb = waterBody else { return "—" }
-        let val = wb.volumeUnit == "liters"
-            ? wb.volumeLiters
-            : wb.volumeLiters / 3.78541
-        let unit = wb.volumeUnit == "liters" ? "L" : "gal"
-        let formatted = val >= 1000
-            ? String(format: "%.0f", val)
-            : String(format: "%.1f", val)
-        return "\(formatted) \(unit)"
+        return settings.displayVolume(litres: wb.volumeLiters)
     }
 
     private var sanitizerDisplay: (icon: String, label: String, color: Color, bg: Color) {
@@ -503,13 +497,10 @@ struct MyWaterBodiesView: View {
 struct WaterBodyCard: View {
     let waterBody: UserWaterBody
     var onTap: () -> Void
+    @Environment(AppSettings.self) private var settings
 
     private var displayVolume: String {
-        let val = waterBody.volumeUnit == "liters"
-            ? waterBody.volumeLiters
-            : waterBody.volumeLiters / 3.78541
-        let unit = waterBody.volumeUnit == "liters" ? "L" : "gal"
-        return "\(String(format: "%.0f", val)) \(unit)"
+        settings.displayVolume(litres: waterBody.volumeLiters)
     }
 
     var body: some View {
@@ -561,6 +552,7 @@ struct WaterBodyCard: View {
 
 struct AddWaterBodyView: View {
     @Environment(WaterBodyStore.self) private var store
+    @Environment(AppSettings.self) private var settings
 
     private let existing: UserWaterBody?
     var onDone: () -> Void
@@ -568,7 +560,6 @@ struct AddWaterBodyView: View {
 
     @State private var bodyType: String
     @State private var name: String
-    @State private var volumeUnit: String
     @State private var volume: String
     @State private var hasHeater: String
     @State private var waterSource: String
@@ -584,15 +575,8 @@ struct AddWaterBodyView: View {
 
         _bodyType    = State(initialValue: existing?.type ?? "pool")
         _name        = State(initialValue: existing?.name ?? "")
-        _volumeUnit  = State(initialValue: existing?.volumeUnit ?? "gallons")
-
-        let dispVol: Double
-        if let e = existing {
-            dispVol = e.volumeUnit == "liters" ? e.volumeLiters : e.volumeLiters / 3.78541
-        } else {
-            dispVol = 0
-        }
-        _volume      = State(initialValue: existing == nil ? "" : String(format: "%.0f", dispVol))
+        // When editing, display the existing volume in litres (settings unit applied at runtime)
+        _volume      = State(initialValue: existing == nil ? "" : String(format: "%.0f", existing!.volumeLiters))
         _hasHeater   = State(initialValue: existing.map { $0.hasHeater ? "yes" : "no" } ?? "")
         _waterSource = State(initialValue: existing?.waterSource ?? "")
         _sanitizer   = State(initialValue: existing?.sanitizer ?? "")
@@ -606,9 +590,9 @@ struct AddWaterBodyView: View {
         return bodyType == "spa" ? base : base && !hasHeater.isEmpty
     }
 
-    private var computedVolumeLiters: Double {
+    private func computedVolumeLiters(settings: AppSettings) -> Double {
         let val = Double(volume) ?? 0
-        return volumeUnit == "liters" ? val : val * 3.78541
+        return settings.volumeUnit == "gallons" ? val * 3.78541 : val
     }
 
     var body: some View {
@@ -748,17 +732,10 @@ struct AddWaterBodyView: View {
                                 .clipShape(Capsule())
                             }
 
-                            FormMenuPicker(
-                                label: "Volume Unit",
-                                placeholder: "Select unit",
-                                selection: $volumeUnit,
-                                options: [("gallons", "Gallons"), ("liters", "Liters")]
-                            )
-
                             FormNumberInput(
                                 label: bodyType == "spa" ? "Spa Volume" : "Pool Volume",
                                 placeholder: bodyType == "spa" ? "Enter spa volume" : "Enter pool volume",
-                                unit: volumeUnit == "liters" ? "L" : "gal",
+                                unit: settings.volumeUnitLabel,
                                 value: $volume
                             )
                         }
@@ -851,8 +828,8 @@ struct AddWaterBodyView: View {
                         id: existing?.id ?? UUID(),
                         name: name.trimmingCharacters(in: .whitespaces),
                         type: bodyType,
-                        volumeLiters: computedVolumeLiters,
-                        volumeUnit: volumeUnit,
+                        volumeLiters: computedVolumeLiters(settings: settings),
+                        volumeUnit: "liters",  // always store as liters internally
                         hasHeater: hasHeater == "yes",
                         waterSource: waterSource,
                         sanitizer: sanitizer
@@ -905,9 +882,9 @@ struct AddWaterBodyView: View {
         .fullScreenCover(isPresented: $showVolumeCalc) {
             PoolVolumeCalculatorCover(
                 isPresented: $showVolumeCalc,
-                onApply: { vol, unit in
+                onApply: { vol, _ in
+                    // Volume calculator returns in the settings unit; store uses litres
                     volume = vol
-                    volumeUnit = unit
                 }
             )
             .presentationBackground(.clear)

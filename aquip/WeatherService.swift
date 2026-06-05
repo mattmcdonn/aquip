@@ -19,10 +19,28 @@ final class WeatherService: NSObject {
     var loadState: LoadState = .loading
     var conditionSymbol: String = "cloud.fill"
     var conditionColor: Color = Color(.systemGray)
-    var temperatureDisplay: String = "–"
+    /// Always stored in Celsius. Use displayTemperature(settings:) for UI.
+    var temperatureCelsius: Double = 0
 
     var isLoading: Bool { loadState == .loading }
     var isAvailable: Bool { loadState == .available }
+
+    /// Returns a display string like "26°" or "78°" depending on the given settings.
+    func displayTemperature(settings: AppSettings) -> String {
+        guard isAvailable else { return "–" }
+        if settings.temperatureUnit == "fahrenheit" {
+            let f = Int((temperatureCelsius * 9 / 5 + 32).rounded())
+            return "\(f)°"
+        } else {
+            return "\(Int(temperatureCelsius.rounded()))°"
+        }
+    }
+
+    /// Legacy property retained for impactText parsing.
+    var temperatureDisplay: String {
+        let f = Int((temperatureCelsius * 9 / 5 + 32).rounded())
+        return "\(f)°"
+    }
 
     // MARK: - Private
 
@@ -57,8 +75,7 @@ final class WeatherService: NSObject {
                 let (symbol, color) = Self.mapCondition(current.condition)
                 conditionSymbol = symbol
                 conditionColor = color
-                let tempF = Int(current.temperature.converted(to: .fahrenheit).value.rounded())
-                temperatureDisplay = "\(tempF)°"
+                temperatureCelsius = current.temperature.converted(to: .celsius).value
                 loadState = .available
             } catch {
                 loadState = .unavailable
