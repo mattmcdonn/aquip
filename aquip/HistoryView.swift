@@ -74,11 +74,21 @@ struct HistoryView: View {
             .background(Color.white)
             .navigationBarHidden(true)
             .navigationDestination(item: $selectedRecord) { record in
-                PoolTestResultsView(
-                    formData: record.formData,
-                    backAction: { selectedRecord = nil },
-                    recordID: record.id
-                )
+                Group {
+                    if record.testType == "spa" {
+                        SpaTestResultsView(
+                            formData: record.formData,
+                            backAction: { selectedRecord = nil },
+                            recordID: record.id
+                        )
+                    } else {
+                        PoolTestResultsView(
+                            formData: record.formData,
+                            backAction: { selectedRecord = nil },
+                            recordID: record.id
+                        )
+                    }
+                }
                 .toolbar(.hidden, for: .navigationBar)
             }
         }

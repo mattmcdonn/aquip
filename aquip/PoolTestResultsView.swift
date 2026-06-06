@@ -2,10 +2,9 @@ import SwiftUI
 
 // MARK: - Summary card
 
-private struct SummaryCard: View {
-    let analysis: PoolAnalysis
+struct SummaryCard: View {
+    let issueCount: Int
 
-    private var issueCount: Int { analysis.totalIssueCount }
     @State private var pulseScale = false
     @State private var pulseOpacity = false
 
@@ -94,7 +93,7 @@ private struct SummaryCard: View {
 
 // MARK: - Animated column bar
 
-private struct ColumnBar: View {
+struct ColumnBar: View {
     let level: ChemistryLevel
     let chartHeight: CGFloat
     let idealFraction: CGFloat
@@ -183,7 +182,7 @@ private struct ColumnBar: View {
 
 // MARK: - Parameter column chart
 
-private struct ParameterColumnChart: View {
+struct ParameterColumnChart: View {
 
     struct Entry {
         let abbrev: String
@@ -294,7 +293,7 @@ private struct ParameterColumnChart: View {
 
 // MARK: - Water temperature ring card
 
-private struct WaterTempCard: View {
+struct WaterTempCard: View {
     let tempString: String
     let tempUnit: String
     let isVisible: Bool
@@ -762,9 +761,15 @@ private struct PoolInfoCard: View {
 
 // MARK: - Next steps card
 
-private struct NextStepsCard: View {
+struct NextStepsCard: View {
 
     let steps: [TreatmentStep]
+    var headerGradient: [Color] = [Color(red: 37/255, green: 99/255, blue: 235/255),
+                                   Color(red: 6/255, green: 182/255, blue: 212/255)]
+    var badgeGradient: [Color] = [Color(red: 59/255, green: 130/255, blue: 246/255),
+                                  Color(red: 37/255, green: 99/255, blue: 235/255)]
+    var accent: Color = Color(red: 37/255, green: 99/255, blue: 235/255)
+    var accentSoft: Color = Color(red: 219/255, green: 234/255, blue: 254/255)
 
     @State private var isExpanded = false
 
@@ -791,8 +796,7 @@ private struct NextStepsCard: View {
                 .padding(.vertical, 16)
                 .background(
                     LinearGradient(
-                        colors: [Color(red: 37/255, green: 99/255, blue: 235/255),
-                                 Color(red: 6/255, green: 182/255, blue: 212/255)],
+                        colors: headerGradient,
                         startPoint: .leading, endPoint: .trailing
                     )
                 )
@@ -845,8 +849,7 @@ private struct NextStepsCard: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [Color(red: 59/255, green: 130/255, blue: 246/255),
-                                     Color(red: 37/255, green: 99/255, blue: 235/255)],
+                            colors: badgeGradient,
                             startPoint: .top, endPoint: .bottom
                         )
                     )
@@ -863,10 +866,10 @@ private struct NextStepsCard: View {
                 if let product = step.product {
                     Text(product)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                        .foregroundStyle(accent)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(Color(red: 219/255, green: 234/255, blue: 254/255))
+                        .background(accentSoft)
                         .clipShape(Capsule())
                 }
                 Text(step.description)
@@ -882,7 +885,7 @@ private struct NextStepsCard: View {
 
 // MARK: - Delete test record popup
 
-private struct DeleteTestRecordPopup: View {
+struct DeleteTestRecordPopup: View {
     var onCancel: () -> Void
     var onDelete: () -> Void
 
@@ -1050,7 +1053,7 @@ struct PoolTestResultsView: View {
                             .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        SummaryCard(analysis: analysis)
+                        SummaryCard(issueCount: analysis.totalIssueCount)
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 24)
@@ -1163,7 +1166,7 @@ struct PoolTestResultsView: View {
 
 // MARK: - Done viewing confirm popup
 
-private struct DoneViewingConfirmPopup: View {
+struct DoneViewingConfirmPopup: View {
     var onCancel: () -> Void
     var onConfirm: () -> Void
 

@@ -36,9 +36,13 @@ struct PoolFormData: Codable, Hashable {
     var hasCirculation: String = ""
     var pumpRunFrequency: String = ""
     var hasLowSaltGenerator: String = ""
+    var sanitizerBackingType: String = ""   // spa enzyme: "chlorine" | "bromine" | "unknown"
     var freeChlorine: String = ""
     var totalChlorine: String = ""
+    var bromine: String = ""                 // spa bromine / enzyme-bromine reading
     var saltLevel: String = ""
+    var saltCellOutput: String = ""          // spa salt cell output %
+    var saltCellRuntime: String = ""         // spa salt cell runtime hrs/day
     var pH: String = ""
     var alkalinity: String = ""
     var cyanuricAcid: String = ""
@@ -539,6 +543,31 @@ struct PoolTestFormView: View {
 
     private var totalSteps: Int { activeSteps.count }
 
+    private var theme: FlowTheme { FlowTheme.of(testType) }
+
+    private var sanitizerOptions: [(value: String, label: String, icon: String, accent: Color, bg: Color)] {
+        var opts: [(value: String, label: String, icon: String, accent: Color, bg: Color)] = [
+            ("chlorine", "Chlorine", "drop.fill",
+             Color(red: 37/255, green: 99/255, blue: 235/255),
+             Color(red: 219/255, green: 234/255, blue: 254/255)),
+            ("salt", "Salt", "waveform",
+             Color(red: 8/255, green: 145/255, blue: 178/255),
+             Color(red: 207/255, green: 250/255, blue: 254/255)),
+            ("bromine", "Bromine", "flame.fill",
+             Color(red: 217/255, green: 119/255, blue: 6/255),
+             Color(red: 254/255, green: 243/255, blue: 199/255))
+        ]
+        // Enzyme is a spa-only sanitizer option.
+        if testType == .spa {
+            opts.append((
+                "enzyme", "Enzyme", "leaf.fill",
+                Color(red: 22/255, green: 163/255, blue: 74/255),
+                Color(red: 220/255, green: 252/255, blue: 231/255)
+            ))
+        }
+        return opts
+    }
+
     private var currentFormStep: PoolFormStep {
         activeSteps[currentStep - 1]
     }
@@ -557,6 +586,9 @@ struct PoolTestFormView: View {
             guard !formData.sanitizer.isEmpty else { return false }
             if formData.sanitizer == "salt" {
                 return !formData.hasLowSaltGenerator.isEmpty
+            }
+            if formData.sanitizer == "enzyme" {
+                return !formData.sanitizerBackingType.isEmpty
             }
             return true
         case .waterTemperature:
@@ -582,11 +614,35 @@ struct PoolTestFormView: View {
             }
             return !formData.pumpRunFrequency.isEmpty && formData.pumpRunFrequency != "not_applicable"
         case .chemicalReadings:
+            if testType == .spa {
+                // Spa: only pH, alkalinity and the relevant sanitizer reading are
+                // required. Everything else (CYA, calcium, metals, phosphates, salt
+                // cell details) is optional per the spa rules.
+                return !formData.pH.isEmpty
+                    && !formData.alkalinity.isEmpty
+                    && spaSanitizerReadingProvided
+            }
             return !formData.freeChlorine.isEmpty && !formData.totalChlorine.isEmpty
                 && !formData.pH.isEmpty && !formData.alkalinity.isEmpty
                 && !formData.cyanuricAcid.isEmpty && !formData.calciumHardness.isEmpty
                 && !formData.phosphates.isEmpty && !formData.copper.isEmpty
                 && !formData.iron.isEmpty && !formData.magnesium.isEmpty
+        }
+    }
+
+    /// True when the spa form has the sanitizer residual required for its type.
+    private var spaSanitizerReadingProvided: Bool {
+        switch formData.sanitizer {
+        case "bromine":
+            return !formData.bromine.isEmpty
+        case "enzyme":
+            switch formData.sanitizerBackingType {
+            case "chlorine": return !formData.freeChlorine.isEmpty
+            case "bromine":  return !formData.bromine.isEmpty
+            default:         return !formData.freeChlorine.isEmpty || !formData.bromine.isEmpty
+            }
+        default: // chlorine, salt
+            return !formData.freeChlorine.isEmpty
         }
     }
 
@@ -726,16 +782,7 @@ struct PoolTestFormView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 72)
                 .padding(.bottom, 24)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 37/255, green: 99/255, blue: 235/255),
-                            Color(red: 6/255, green: 182/255, blue: 212/255)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .background(theme.linearGradient)
 
                 // Step content, scrollable
                 ScrollView {
@@ -769,14 +816,7 @@ struct PoolTestFormView: View {
                         .background(
                             Group {
                                 if canContinue {
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 37/255, green: 99/255, blue: 235/255),
-                                            Color(red: 6/255, green: 182/255, blue: 212/255)
-                                        ],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
+                                    theme.linearGradient
                                 } else {
                                     LinearGradient(
                                         colors: [
@@ -956,17 +996,7 @@ struct PoolTestFormView: View {
                 .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
 
             VStack(spacing: 12) {
-                ForEach([
-                    ("chlorine", "Chlorine", "drop.fill",
-                     Color(red: 37/255, green: 99/255, blue: 235/255),
-                     Color(red: 219/255, green: 234/255, blue: 254/255)),
-                    ("salt", "Salt", "waveform",
-                     Color(red: 8/255, green: 145/255, blue: 178/255),
-                     Color(red: 207/255, green: 250/255, blue: 254/255)),
-                    ("bromine", "Bromine", "flame.fill",
-                     Color(red: 217/255, green: 119/255, blue: 6/255),
-                     Color(red: 254/255, green: 243/255, blue: 199/255))
-                ], id: \.0) { value, label, icon, accent, bg in
+                ForEach(sanitizerOptions, id: \.value) { value, label, icon, accent, bg in
                     let isSelected = formData.sanitizer == value
                     Button {
                         formData.sanitizer = value
@@ -1046,6 +1076,71 @@ struct PoolTestFormView: View {
                                             )
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                            .buttonStyle(.plain)
+                            .animation(.easeInOut(duration: 0.15), value: isSelected)
+                        }
+                    }
+                }
+            }
+
+            if formData.sanitizer == "enzyme" {
+                VStack(alignment: .leading, spacing: 14) {
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    Text("Enzyme Sanitizer Base")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+                    Text("Enzymes break down oils and organics but are not a complete sanitizer. Which sanitizer residual does your enzyme system rely on?")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+
+                    VStack(spacing: 12) {
+                        ForEach([
+                            ("chlorine", "Chlorine"),
+                            ("bromine", "Bromine"),
+                            ("unknown", "Not sure")
+                        ], id: \.0) { value, label in
+                            let isSelected = formData.sanitizerBackingType == value
+                            Button {
+                                formData.sanitizerBackingType = value
+                            } label: {
+                                HStack {
+                                    Text(label)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(
+                                            isSelected
+                                                ? Color(red: 22/255, green: 163/255, blue: 74/255)
+                                                : Color(red: 55/255, green: 65/255, blue: 81/255)
+                                        )
+                                    Spacer()
+                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(
+                                            isSelected
+                                                ? Color(red: 22/255, green: 163/255, blue: 74/255)
+                                                : Color(red: 209/255, green: 213/255, blue: 219/255)
+                                        )
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .background(
+                                    isSelected
+                                        ? Color(red: 220/255, green: 252/255, blue: 231/255)
+                                        : Color.white
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(
+                                            isSelected
+                                                ? Color(red: 22/255, green: 163/255, blue: 74/255)
+                                                : Color(red: 229/255, green: 231/255, blue: 235/255),
+                                            lineWidth: isSelected ? 2 : 1
+                                        )
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
                             }
                             .buttonStyle(.plain)
                             .animation(.easeInOut(duration: 0.15), value: isSelected)
@@ -1206,14 +1301,24 @@ struct PoolTestFormView: View {
                 .font(.system(size: 15))
                 .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
 
-            let colorOptions: [(value: String, label: String, color: Color)] = [
-                ("green",  "Green (algae)",     Color(red: 34/255, green: 197/255, blue: 94/255)),
-                ("cloudy", "Blue (cloudy)",     Color(red: 96/255, green: 165/255, blue: 250/255)),
-                ("clear",  "Clear",             Color(red: 125/255, green: 211/255, blue: 252/255)),
-                ("brown",  "Brown",             Color(red: 180/255, green: 83/255, blue: 9/255)),
-                ("black",  "Black",             Color(red: 31/255, green: 41/255, blue: 55/255)),
-                ("purple", "Purple",            Color(red: 168/255, green: 85/255, blue: 247/255))
-            ]
+            let colorOptions: [(value: String, label: String, color: Color)] = testType == .spa
+                ? [
+                    ("clear",  "Clear",   Color(red: 125/255, green: 211/255, blue: 252/255)),
+                    ("cloudy", "Cloudy",  Color(red: 96/255,  green: 165/255, blue: 250/255)),
+                    ("milky",  "Milky",   Color(red: 203/255, green: 213/255, blue: 225/255)),
+                    ("foamy",  "Foamy",   Color(red: 191/255, green: 219/255, blue: 254/255)),
+                    ("green",  "Green",   Color(red: 34/255,  green: 197/255, blue: 94/255)),
+                    ("brown",  "Brown",   Color(red: 180/255, green: 83/255,  blue: 9/255)),
+                    ("black",  "Black",   Color(red: 31/255,  green: 41/255,  blue: 55/255))
+                ]
+                : [
+                    ("green",  "Green (algae)",     Color(red: 34/255, green: 197/255, blue: 94/255)),
+                    ("cloudy", "Blue (cloudy)",     Color(red: 96/255, green: 165/255, blue: 250/255)),
+                    ("clear",  "Clear",             Color(red: 125/255, green: 211/255, blue: 252/255)),
+                    ("brown",  "Brown",             Color(red: 180/255, green: 83/255, blue: 9/255)),
+                    ("black",  "Black",             Color(red: 31/255, green: 41/255, blue: 55/255)),
+                    ("purple", "Purple",            Color(red: 168/255, green: 85/255, blue: 247/255))
+                ]
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(colorOptions, id: \.value) { option in
@@ -1529,26 +1634,84 @@ struct PoolTestFormView: View {
 
     // Final step: Chemical readings
     @ViewBuilder private var stepChemicalReadings: some View {
+        if testType == .spa {
+            stepChemicalReadingsSpa
+        } else {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Enter Test Strip Readings")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+
+                FormNumberInput(label: "Free Chlorine", placeholder: "0.0", unit: "ppm", value: $formData.freeChlorine)
+                FormNumberInput(label: "Total Chlorine", placeholder: "0.0", unit: "ppm", value: $formData.totalChlorine)
+
+                if formData.sanitizer == "salt" {
+                    FormNumberInput(label: "Salt Level", placeholder: "0", unit: "ppm", value: $formData.saltLevel)
+                }
+
+                FormNumberInput(label: "pH", placeholder: "0.0", unit: nil, value: $formData.pH)
+                FormNumberInput(label: "Total Alkalinity", placeholder: "0", unit: "ppm", value: $formData.alkalinity)
+                FormNumberInput(label: "Cyanuric Acid / Stabilizer", placeholder: "0", unit: "ppm", value: $formData.cyanuricAcid)
+                FormNumberInput(label: "Calcium Hardness", placeholder: "0", unit: "ppm", value: $formData.calciumHardness)
+                FormNumberInput(label: "Phosphates", placeholder: "0", unit: "ppb", value: $formData.phosphates)
+                FormNumberInput(label: "Copper", placeholder: "0.0", unit: "ppm", value: $formData.copper)
+                FormNumberInput(label: "Iron", placeholder: "0.0", unit: "ppm", value: $formData.iron)
+                FormNumberInput(label: "Magnesium", placeholder: "0.0", unit: "ppm", value: $formData.magnesium)
+            }
+        }
+    }
+
+    // Spa chemical readings — sanitizer-aware required fields, the rest optional.
+    @ViewBuilder private var stepChemicalReadingsSpa: some View {
+        let isBromine   = formData.sanitizer == "bromine"
+        let isEnzyme    = formData.sanitizer == "enzyme"
+        let isSalt      = formData.sanitizer == "salt"
+        let backing     = formData.sanitizerBackingType
+        let showFC      = !isBromine && !(isEnzyme && backing == "bromine")
+        let showBr      = isBromine || (isEnzyme && (backing == "bromine" || backing == "unknown"))
+
         VStack(alignment: .leading, spacing: 20) {
             Text("Enter Test Strip Readings")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
 
-            FormNumberInput(label: "Free Chlorine", placeholder: "0.0", unit: "ppm", value: $formData.freeChlorine)
-            FormNumberInput(label: "Total Chlorine", placeholder: "0.0", unit: "ppm", value: $formData.totalChlorine)
+            Text("Only your sanitizer reading, pH and total alkalinity are required. The other fields are optional — leave them blank if you didn't test them.")
+                .font(.system(size: 13))
+                .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
 
-            if formData.sanitizer == "salt" {
-                FormNumberInput(label: "Salt Level", placeholder: "0", unit: "ppm", value: $formData.saltLevel)
+            if isEnzyme && backing == "unknown" {
+                Text("Enter whichever sanitizer residual your enzyme system uses (chlorine or bromine).")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(red: 22/255, green: 163/255, blue: 74/255))
             }
 
+            // Sanitizer reading(s)
+            if showFC {
+                FormNumberInput(label: "Free Chlorine", placeholder: "0.0", unit: "ppm", value: $formData.freeChlorine)
+                FormNumberInput(label: "Total Chlorine (optional)", placeholder: "0.0", unit: "ppm", value: $formData.totalChlorine)
+            }
+            if showBr {
+                FormNumberInput(label: "Bromine", placeholder: "0.0", unit: "ppm", value: $formData.bromine)
+            }
+
+            // Always required
             FormNumberInput(label: "pH", placeholder: "0.0", unit: nil, value: $formData.pH)
             FormNumberInput(label: "Total Alkalinity", placeholder: "0", unit: "ppm", value: $formData.alkalinity)
-            FormNumberInput(label: "Cyanuric Acid / Stabilizer", placeholder: "0", unit: "ppm", value: $formData.cyanuricAcid)
-            FormNumberInput(label: "Calcium Hardness", placeholder: "0", unit: "ppm", value: $formData.calciumHardness)
-            FormNumberInput(label: "Phosphates", placeholder: "0", unit: "ppb", value: $formData.phosphates)
-            FormNumberInput(label: "Copper", placeholder: "0.0", unit: "ppm", value: $formData.copper)
-            FormNumberInput(label: "Iron", placeholder: "0.0", unit: "ppm", value: $formData.iron)
-            FormNumberInput(label: "Magnesium", placeholder: "0.0", unit: "ppm", value: $formData.magnesium)
+
+            // Salt system details (optional)
+            if isSalt {
+                FormNumberInput(label: "Salt Level (optional)", placeholder: "0", unit: "ppm", value: $formData.saltLevel)
+                FormNumberInput(label: "Salt Cell Output (optional)", placeholder: "0", unit: "%", value: $formData.saltCellOutput)
+                FormNumberInput(label: "Salt Cell Runtime (optional)", placeholder: "0", unit: "hrs/day", value: $formData.saltCellRuntime)
+            }
+
+            // Optional balancing / metals
+            FormNumberInput(label: "Cyanuric Acid / Stabilizer (optional)", placeholder: "0", unit: "ppm", value: $formData.cyanuricAcid)
+            FormNumberInput(label: "Calcium Hardness (optional)", placeholder: "0", unit: "ppm", value: $formData.calciumHardness)
+            FormNumberInput(label: "Phosphates (optional)", placeholder: "0", unit: "ppb", value: $formData.phosphates)
+            FormNumberInput(label: "Copper (optional)", placeholder: "0.0", unit: "ppm", value: $formData.copper)
+            FormNumberInput(label: "Iron (optional)", placeholder: "0.0", unit: "ppm", value: $formData.iron)
+            FormNumberInput(label: "Magnesium (optional)", placeholder: "0.0", unit: "ppm", value: $formData.magnesium)
         }
     }
 }
