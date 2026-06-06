@@ -297,6 +297,7 @@ struct WaterTempCard: View {
     let tempString: String
     let tempUnit: String
     let isVisible: Bool
+    var testType: WaterTestType = .pool
     @Environment(AppSettings.self) private var settings
 
     // Always resolve celsius internally for ring/category logic.
@@ -314,6 +315,14 @@ struct WaterTempCard: View {
         guard let f = tempFahrenheit else {
             return ("—", Color(red: 156/255, green: 163/255, blue: 175/255))
         }
+        if testType == .spa {
+            // Spa: safe soaking range is 100–104°F; above 104°F is unsafe.
+            switch f {
+            case ..<100:    return ("Too Cool", Color(red: 59/255,  green: 130/255, blue: 246/255))
+            case 100...104: return ("Ideal",    Color(red: 22/255,  green: 163/255, blue: 74/255))
+            default:        return ("Unsafe",   Color(red: 220/255, green: 38/255,  blue: 38/255))
+            }
+        }
         switch f {
         case ..<60:   return ("Cold",         Color(red: 59/255,  green: 130/255, blue: 246/255))
         case 60..<70: return ("Transitional",  Color(red: 125/255, green: 211/255, blue: 252/255))
@@ -323,9 +332,14 @@ struct WaterTempCard: View {
         }
     }
 
-    // Fraction of the ring to fill (0–1). Map 32–110°F range for visual.
+    // Fraction of the ring to fill (0–1).
     private var ringFraction: Double {
         guard let f = tempFahrenheit else { return 0 }
+        if testType == .spa {
+            // Map 80–110°F so the 100–104°F ideal band sits near the top of the ring.
+            let clamped = min(max(f, 80), 110)
+            return (clamped - 80) / (110 - 80)
+        }
         let clamped = min(max(f, 32), 110)
         return (clamped - 32) / (110 - 32)
     }

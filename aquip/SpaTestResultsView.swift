@@ -116,7 +116,8 @@ struct SpaTestResultsView: View {
                                 WaterTempCard(
                                     tempString: formData.waterTemp,
                                     tempUnit: formData.tempUnit,
-                                    isVisible: scrolledChartID == 1
+                                    isVisible: scrolledChartID == 1,
+                                    testType: .spa
                                 )
                                 .containerRelativeFrame(.horizontal) { w, _ in w - 56 }
                                 .id(1)
