@@ -982,6 +982,11 @@ struct PoolTestFormView: View {
                 ]
             )
         }
+        .onAppear {
+            // Record the unit the volume is being entered in so the results
+            // screen converts it correctly (the input uses the settings unit).
+            formData.volumeUnit = settings.volumeUnit == "gallons" ? "gallons" : "liters"
+        }
     }
 
     // Step 3: Sanitizer

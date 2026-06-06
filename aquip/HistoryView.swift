@@ -79,13 +79,15 @@ struct HistoryView: View {
                         SpaTestResultsView(
                             formData: record.formData,
                             backAction: { selectedRecord = nil },
-                            recordID: record.id
+                            recordID: record.id,
+                            headerTopPadding: 10
                         )
                     } else {
                         PoolTestResultsView(
                             formData: record.formData,
                             backAction: { selectedRecord = nil },
-                            recordID: record.id
+                            recordID: record.id,
+                            headerTopPadding: 10
                         )
                     }
                 }

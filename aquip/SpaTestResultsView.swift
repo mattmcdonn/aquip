@@ -7,6 +7,10 @@ struct SpaTestResultsView: View {
     var onDone: (() -> Void)? = nil
     var backAction: (() -> Void)? = nil
     var recordID: UUID? = nil
+    // Larger default clears the status bar in the test flow (which ignores the
+    // top safe area); History presents this inside a NavigationStack and passes
+    // a smaller value so the header isn't double-padded.
+    var headerTopPadding: CGFloat = 60
 
     @Environment(AppSettings.self) private var settings
     @Environment(TestHistoryStore.self) private var historyStore
@@ -76,7 +80,7 @@ struct SpaTestResultsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
-                .padding(.top, 60)
+                .padding(.top, headerTopPadding)
                 .padding(.bottom, 20)
                 .background(
                     theme.linearGradient
@@ -239,9 +243,17 @@ private struct SpaQuickInfoCard: View {
     }
 
     private var volumeDisplay: String {
-        guard !formData.volume.isEmpty, let rawVal = Double(formData.volume) else { return "—" }
-        let litres = formData.volumeUnit == "liters" ? rawVal : rawVal * 3.78541
-        return settings.displayVolume(litres: litres)
+        if !formData.volume.isEmpty, let rawVal = Double(formData.volume) {
+            // formData.volume is stored in the unit it was entered in.
+            let litres = formData.volumeUnit == "gallons" ? rawVal * 3.78541 : rawVal
+            return settings.displayVolume(litres: litres)
+        }
+        // Saved spa selected without a manually entered volume: use its stored volume.
+        if formData.savedPool != "none",
+           let body = store.bodies.first(where: { $0.id.uuidString == formData.savedPool }) {
+            return settings.displayVolume(litres: body.volumeLiters)
+        }
+        return "—"
     }
 
     private var sanitizer: (label: String, icon: String, color: Color) {
