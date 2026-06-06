@@ -107,6 +107,8 @@ struct PoolTestIntroView: View {
 
     @State private var carouselIndex = 0
 
+    private var theme: FlowTheme { FlowTheme.of(testType) }
+
     private var slides: [CarouselSlide] {
         testType == .spa ? spaCarouselSlides : poolCarouselSlides
     }
@@ -149,16 +151,7 @@ struct PoolTestIntroView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 72)
                 .padding(.bottom, 28)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 37/255, green: 99/255, blue: 235/255),
-                            Color(red: 6/255, green: 182/255, blue: 212/255)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .background(theme.linearGradient)
 
                 // Scrollable content
                 ScrollView {
@@ -184,16 +177,7 @@ struct PoolTestIntroView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 37/255, green: 99/255, blue: 235/255),
-                                    Color(red: 6/255, green: 182/255, blue: 212/255)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .background(theme.linearGradient)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)

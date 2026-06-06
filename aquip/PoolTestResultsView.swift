@@ -2,10 +2,9 @@ import SwiftUI
 
 // MARK: - Summary card
 
-private struct SummaryCard: View {
-    let analysis: PoolAnalysis
+struct SummaryCard: View {
+    let issueCount: Int
 
-    private var issueCount: Int { analysis.totalIssueCount }
     @State private var pulseScale = false
     @State private var pulseOpacity = false
 
@@ -94,7 +93,7 @@ private struct SummaryCard: View {
 
 // MARK: - Animated column bar
 
-private struct ColumnBar: View {
+struct ColumnBar: View {
     let level: ChemistryLevel
     let chartHeight: CGFloat
     let idealFraction: CGFloat
@@ -183,7 +182,7 @@ private struct ColumnBar: View {
 
 // MARK: - Parameter column chart
 
-private struct ParameterColumnChart: View {
+struct ParameterColumnChart: View {
 
     struct Entry {
         let abbrev: String
@@ -294,10 +293,11 @@ private struct ParameterColumnChart: View {
 
 // MARK: - Water temperature ring card
 
-private struct WaterTempCard: View {
+struct WaterTempCard: View {
     let tempString: String
     let tempUnit: String
     let isVisible: Bool
+    var testType: WaterTestType = .pool
     @Environment(AppSettings.self) private var settings
 
     // Always resolve celsius internally for ring/category logic.
@@ -315,6 +315,14 @@ private struct WaterTempCard: View {
         guard let f = tempFahrenheit else {
             return ("—", Color(red: 156/255, green: 163/255, blue: 175/255))
         }
+        if testType == .spa {
+            // Spa: safe soaking range is 100–104°F; above 104°F is unsafe.
+            switch f {
+            case ..<100:    return ("Too Cool", Color(red: 59/255,  green: 130/255, blue: 246/255))
+            case 100...104: return ("Ideal",    Color(red: 22/255,  green: 163/255, blue: 74/255))
+            default:        return ("Unsafe",   Color(red: 220/255, green: 38/255,  blue: 38/255))
+            }
+        }
         switch f {
         case ..<60:   return ("Cold",         Color(red: 59/255,  green: 130/255, blue: 246/255))
         case 60..<70: return ("Transitional",  Color(red: 125/255, green: 211/255, blue: 252/255))
@@ -324,9 +332,14 @@ private struct WaterTempCard: View {
         }
     }
 
-    // Fraction of the ring to fill (0–1). Map 32–110°F range for visual.
+    // Fraction of the ring to fill (0–1).
     private var ringFraction: Double {
         guard let f = tempFahrenheit else { return 0 }
+        if testType == .spa {
+            // Map 80–110°F so the 100–104°F ideal band sits near the top of the ring.
+            let clamped = min(max(f, 80), 110)
+            return (clamped - 80) / (110 - 80)
+        }
         let clamped = min(max(f, 32), 110)
         return (clamped - 32) / (110 - 32)
     }
@@ -436,14 +449,17 @@ private struct PoolQuickInfoCard: View {
     }
 
     private var volumeDisplay: String {
-        guard !formData.volume.isEmpty, let rawVal = Double(formData.volume) else { return "—" }
-        let litres: Double
-        if formData.volumeUnit == "liters" {
-            litres = rawVal
-        } else {
-            litres = rawVal * 3.78541  // legacy gallons record
+        if !formData.volume.isEmpty, let rawVal = Double(formData.volume) {
+            // formData.volume is stored in the unit it was entered in.
+            let litres = formData.volumeUnit == "gallons" ? rawVal * 3.78541 : rawVal
+            return settings.displayVolume(litres: litres)
         }
-        return settings.displayVolume(litres: litres)
+        // Saved pool selected without a manually entered volume: use its stored volume.
+        if formData.savedPool != "none",
+           let body = store.bodies.first(where: { $0.id.uuidString == formData.savedPool }) {
+            return settings.displayVolume(litres: body.volumeLiters)
+        }
+        return "—"
     }
 
     private var sanitizerIcon: String {
@@ -535,14 +551,17 @@ private struct PoolInfoCard: View {
     }
 
     private var volumeDisplay: String {
-        guard !formData.volume.isEmpty, let rawVal = Double(formData.volume) else { return "—" }
-        let litres: Double
-        if formData.volumeUnit == "liters" {
-            litres = rawVal
-        } else {
-            litres = rawVal * 3.78541  // legacy gallons record
+        if !formData.volume.isEmpty, let rawVal = Double(formData.volume) {
+            // formData.volume is stored in the unit it was entered in.
+            let litres = formData.volumeUnit == "gallons" ? rawVal * 3.78541 : rawVal
+            return settings.displayVolume(litres: litres)
         }
-        return settings.displayVolume(litres: litres)
+        // Saved pool selected without a manually entered volume: use its stored volume.
+        if formData.savedPool != "none",
+           let body = store.bodies.first(where: { $0.id.uuidString == formData.savedPool }) {
+            return settings.displayVolume(litres: body.volumeLiters)
+        }
+        return "—"
     }
 
     private var sanitizerInfo: (label: String, icon: String, color: Color) {
@@ -762,9 +781,15 @@ private struct PoolInfoCard: View {
 
 // MARK: - Next steps card
 
-private struct NextStepsCard: View {
+struct NextStepsCard: View {
 
     let steps: [TreatmentStep]
+    var headerGradient: [Color] = [Color(red: 37/255, green: 99/255, blue: 235/255),
+                                   Color(red: 6/255, green: 182/255, blue: 212/255)]
+    var badgeGradient: [Color] = [Color(red: 59/255, green: 130/255, blue: 246/255),
+                                  Color(red: 37/255, green: 99/255, blue: 235/255)]
+    var accent: Color = Color(red: 37/255, green: 99/255, blue: 235/255)
+    var accentSoft: Color = Color(red: 219/255, green: 234/255, blue: 254/255)
 
     @State private var isExpanded = false
 
@@ -791,8 +816,7 @@ private struct NextStepsCard: View {
                 .padding(.vertical, 16)
                 .background(
                     LinearGradient(
-                        colors: [Color(red: 37/255, green: 99/255, blue: 235/255),
-                                 Color(red: 6/255, green: 182/255, blue: 212/255)],
+                        colors: headerGradient,
                         startPoint: .leading, endPoint: .trailing
                     )
                 )
@@ -845,8 +869,7 @@ private struct NextStepsCard: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [Color(red: 59/255, green: 130/255, blue: 246/255),
-                                     Color(red: 37/255, green: 99/255, blue: 235/255)],
+                            colors: badgeGradient,
                             startPoint: .top, endPoint: .bottom
                         )
                     )
@@ -863,10 +886,10 @@ private struct NextStepsCard: View {
                 if let product = step.product {
                     Text(product)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                        .foregroundStyle(accent)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(Color(red: 219/255, green: 234/255, blue: 254/255))
+                        .background(accentSoft)
                         .clipShape(Capsule())
                 }
                 Text(step.description)
@@ -882,7 +905,7 @@ private struct NextStepsCard: View {
 
 // MARK: - Delete test record popup
 
-private struct DeleteTestRecordPopup: View {
+struct DeleteTestRecordPopup: View {
     var onCancel: () -> Void
     var onDelete: () -> Void
 
@@ -953,6 +976,10 @@ struct PoolTestResultsView: View {
     var onDone: (() -> Void)? = nil
     var backAction: (() -> Void)? = nil
     var recordID: UUID? = nil
+    // Larger default clears the status bar in the test flow (which ignores the
+    // top safe area); History presents this inside a NavigationStack and passes
+    // a smaller value so the header isn't double-padded.
+    var headerTopPadding: CGFloat = 60
 
     @Environment(AppSettings.self) private var settings
     @Environment(TestHistoryStore.self) private var historyStore
@@ -1023,7 +1050,7 @@ struct PoolTestResultsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.top, 10)
+            .padding(.top, headerTopPadding)
             .padding(.bottom, 20)
             .background(
                 LinearGradient(
@@ -1050,7 +1077,7 @@ struct PoolTestResultsView: View {
                             .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        SummaryCard(analysis: analysis)
+                        SummaryCard(issueCount: analysis.totalIssueCount)
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 24)
@@ -1163,7 +1190,7 @@ struct PoolTestResultsView: View {
 
 // MARK: - Done viewing confirm popup
 
-private struct DoneViewingConfirmPopup: View {
+struct DoneViewingConfirmPopup: View {
     var onCancel: () -> Void
     var onConfirm: () -> Void
 

@@ -12,6 +12,7 @@ enum TestFlowStep {
     case poolResults
     case spaInstructions
     case spaDataCollection
+    case spaResults
 }
 
 struct TestFlowView: View {
@@ -41,7 +42,8 @@ struct TestFlowView: View {
         withAnimation(.easeInOut(duration: 0.3)) {
             step = newStep
         }
-        let inForm = (newStep == .poolDataCollection || newStep == .spaDataCollection || newStep == .poolResults)
+        let inForm = (newStep == .poolDataCollection || newStep == .spaDataCollection
+                      || newStep == .poolResults || newStep == .spaResults)
         isInQuestionnaire = inForm
     }
 
@@ -125,9 +127,29 @@ struct TestFlowView: View {
                 PoolTestFormView(
                     testType: .spa,
                     onCancel:   { navigate(to: .typeSelection, forward: false) },
-                    onComplete: { _ in /* results wired up later */ }
+                    onComplete: { data in
+                        poolFormData = data
+                        let analysis = SpaChemistryEngine.analyze(data)
+                        let record = TestHistoryRecord(
+                            testType: "spa",
+                            poolName: resolvedPoolName(for: data, testType: .spa),
+                            formData: data,
+                            issueCount: analysis.totalIssueCount
+                        )
+                        navigate(to: .spaResults, forward: true)
+                        saveOrPrompt(record)
+                    }
                 )
                 .transition(transition)
+
+            case .spaResults:
+                if let data = poolFormData {
+                    SpaTestResultsView(
+                        formData: data,
+                        onDone: { navigate(to: .typeSelection, forward: false) }
+                    )
+                    .transition(transition)
+                }
             }
 
             // History limit popup — shown after navigating to results when store is full
