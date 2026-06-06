@@ -97,34 +97,81 @@ struct SummaryCard: View {
 
 struct WeatherImpactAlertCard: View {
     let impact: WeatherImpactResult
+    let snapshot: WeatherSnapshot?
+
+    private var isHot: Bool { snapshot?.isHot == true }
+    private var isSunny: Bool { snapshot?.isSunny == true }
+    private var isRaining: Bool { snapshot?.isRaining == true }
+
+    // Match the same visual language used by the Weather sheet cards.
+    // Priority: rain > sunny > hot. Rain gets priority because it affects test reliability.
+    private var iconName: String {
+        if isRaining { return "cloud.rain.fill" }
+        if isSunny { return "sun.max.fill" }
+        if isHot { return "thermometer.medium" }
+        return "cloud.fill"
+    }
+
+    private var iconColor: Color {
+        if isRaining { return Color(red: 59/255, green: 130/255, blue: 246/255) }
+        if isSunny { return Color(red: 245/255, green: 158/255, blue: 11/255) }
+        if isHot { return Color(red: 37/255, green: 99/255, blue: 235/255) }
+        return Color(.systemGray)
+    }
+
+    private var iconBackground: Color {
+        if isRaining { return Color(red: 219/255, green: 234/255, blue: 254/255) }
+        if isSunny { return Color(red: 254/255, green: 243/255, blue: 199/255) }
+        if isHot { return Color(red: 219/255, green: 234/255, blue: 254/255) }
+        return Color(red: 243/255, green: 244/255, blue: 246/255)
+    }
+
+    private var cardBackground: Color {
+        if isRaining { return Color(red: 239/255, green: 246/255, blue: 255/255) }
+        if isSunny { return Color(red: 255/255, green: 251/255, blue: 235/255) }
+        if isHot { return Color(red: 239/255, green: 246/255, blue: 255/255) }
+        return Color(red: 249/255, green: 250/255, blue: 251/255)
+    }
+
+    private var cardBorder: Color {
+        if isRaining { return Color(red: 191/255, green: 219/255, blue: 254/255) }
+        if isSunny { return Color(red: 252/255, green: 211/255, blue: 77/255) }
+        if isHot { return Color(red: 191/255, green: 219/255, blue: 254/255) }
+        return Color(red: 229/255, green: 231/255, blue: 235/255)
+    }
+
+    private var textColor: Color {
+        if isRaining { return Color(red: 30/255, green: 64/255, blue: 175/255) }
+        if isSunny { return Color(red: 120/255, green: 53/255, blue: 15/255) }
+        if isHot { return Color(red: 30/255, green: 64/255, blue: 175/255) }
+        return Color(red: 55/255, green: 65/255, blue: 81/255)
+    }
+
+    private var inlineText: Text {
+        Text("Weather Alert, ").bold() + Text(impact.message)
+    }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 14))
-                .foregroundStyle(Color(red: 217/255, green: 119/255, blue: 6/255))
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: iconName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(iconColor)
                 .frame(width: 28, height: 28)
-                .background(Color(red: 254/255, green: 243/255, blue: 199/255))
+                .background(iconBackground)
                 .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(impact.title)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(red: 120/255, green: 53/255, blue: 15/255))
-
-                Text(impact.message)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color(red: 120/255, green: 53/255, blue: 15/255))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            inlineText
+                .font(.system(size: 13))
+                .foregroundStyle(textColor)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(red: 255/255, green: 251/255, blue: 235/255))
+        .background(cardBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(red: 252/255, green: 211/255, blue: 77/255), lineWidth: 1.5)
+                .stroke(cardBorder, lineWidth: 1.5)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -1128,7 +1175,7 @@ struct PoolTestResultsView: View {
                         SummaryCard(issueCount: analysis.totalIssueCount)
 
                         if let weatherImpact {
-                            WeatherImpactAlertCard(impact: weatherImpact)
+                            WeatherImpactAlertCard(impact: weatherImpact, snapshot: weatherSnapshot)
                         }
                     }
                     .padding(.horizontal, 24)

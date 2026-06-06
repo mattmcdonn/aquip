@@ -112,7 +112,7 @@ struct SpaTestResultsView: View {
                             SummaryCard(issueCount: analysis.totalIssueCount)
 
                             if let weatherImpact {
-                                WeatherImpactAlertCard(impact: weatherImpact)
+                                WeatherImpactAlertCard(impact: weatherImpact, snapshot: weatherSnapshot)
                             }
                         }
                         .padding(.horizontal, 24)
