@@ -1040,7 +1040,7 @@ struct PoolTestResultsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.top, 10)
+            .padding(.top, 60)
             .padding(.bottom, 20)
             .background(
                 LinearGradient(
