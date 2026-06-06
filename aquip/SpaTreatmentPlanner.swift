@@ -5,7 +5,11 @@ import Foundation
 /// (chlorine / bromine / enzyme / salt).
 enum SpaTreatmentPlanner {
 
-    static func steps(formData data: PoolFormData, analysis: SpaAnalysis) -> [TreatmentStep] {
+    static func steps(
+        formData data: PoolFormData,
+        analysis: SpaAnalysis,
+        weatherSnapshot: WeatherSnapshot? = nil
+    ) -> [TreatmentStep] {
         var raw: [StepBuilder] = []
 
         let appearance   = data.waterColor
@@ -54,6 +58,21 @@ enum SpaTreatmentPlanner {
             raw.append(appearanceStep)
         }
 
+
+
+        // Weather impact: rain belongs early because it can affect readings
+        if let impact = WeatherService.weatherImpact(
+            from: weatherSnapshot,
+            testType: "spa",
+            sanitizer: data.sanitizer
+        ), weatherSnapshot?.isRaining == true {
+            raw.append(StepBuilder(
+                title: impact.nextStepTitle,
+                product: nil,
+                description: impact.nextStepDescription
+            ))
+        }
+
         // 5. Balance alkalinity and pH
         raw.append(contentsOf: phAlkSteps(analysis: analysis))
 
@@ -61,6 +80,21 @@ enum SpaTreatmentPlanner {
         raw.append(contentsOf: sanitizerSteps(data: data, analysis: analysis,
                                               metals: metals, recentShock: recentShock,
                                               higherUsage: higherUsage, appearance: appearance))
+
+
+
+        // Weather impact: hot/sunny belongs near sanitizer monitoring
+        if let impact = WeatherService.weatherImpact(
+            from: weatherSnapshot,
+            testType: "spa",
+            sanitizer: data.sanitizer
+        ), weatherSnapshot?.isRaining != true {
+            raw.append(StepBuilder(
+                title: impact.nextStepTitle,
+                product: nil,
+                description: impact.nextStepDescription
+            ))
+        }
 
         // 7. Calcium hardness (optional)
         if analysis.calcium.level == .low {

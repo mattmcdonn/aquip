@@ -4,6 +4,7 @@ import SwiftUI
 
 struct SpaTestResultsView: View {
     let formData: PoolFormData
+    var weatherSnapshot: WeatherSnapshot? = nil
     var onDone: (() -> Void)? = nil
     var backAction: (() -> Void)? = nil
     var recordID: UUID? = nil
@@ -19,6 +20,14 @@ struct SpaTestResultsView: View {
 
     private var analysis: SpaAnalysis {
         SpaChemistryEngine.analyze(formData)
+    }
+
+    private var weatherImpact: WeatherImpactResult? {
+        WeatherService.weatherImpact(
+            from: weatherSnapshot,
+            testType: "spa",
+            sanitizer: formData.sanitizer
+        )
     }
 
     @State private var scrolledChartID: Int? = 0
@@ -101,6 +110,10 @@ struct SpaTestResultsView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             SummaryCard(issueCount: analysis.totalIssueCount)
+
+                            if let weatherImpact {
+                                WeatherImpactAlertCard(impact: weatherImpact)
+                            }
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 24)
@@ -151,7 +164,11 @@ struct SpaTestResultsView: View {
                             .padding(.bottom, 20)
 
                         // ── Next steps ──
-                        let treatmentSteps = SpaTreatmentPlanner.steps(formData: formData, analysis: analysis)
+                        let treatmentSteps = SpaTreatmentPlanner.steps(
+                            formData: formData,
+                            analysis: analysis,
+                            weatherSnapshot: weatherSnapshot
+                        )
                         if !treatmentSteps.isEmpty {
                             NextStepsCard(
                                 steps: treatmentSteps,

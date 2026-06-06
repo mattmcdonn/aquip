@@ -13,7 +13,11 @@ struct TreatmentStep: Identifiable {
 
 enum PoolTreatmentPlanner {
 
-    static func steps(formData: PoolFormData, analysis: PoolAnalysis) -> [TreatmentStep] {
+    static func steps(
+        formData: PoolFormData,
+        analysis: PoolAnalysis,
+        weatherSnapshot: WeatherSnapshot? = nil
+    ) -> [TreatmentStep] {
         var raw: [StepBuilder] = []
 
         // MARK: - Convenience flags
@@ -92,6 +96,21 @@ enum PoolTreatmentPlanner {
                 title: "Continue circulating and retest before adding more chemicals",
                 product: nil,
                 description: "Your pool was recently shocked. Keep the pump running and allow the shock to fully circulate and dissipate before evaluating results or adding any additional chemicals. Retest free chlorine, combined chlorine, pH, and alkalinity in 8–24 hours. Adding more chemicals before shock has done its job can overshoot or interfere with results."
+            ))
+        }
+
+
+
+        // MARK: - Context Block 2b: Rain/current weather impact
+        if let impact = WeatherService.weatherImpact(
+            from: weatherSnapshot,
+            testType: "pool",
+            sanitizer: formData.sanitizer
+        ), weatherSnapshot?.isRaining == true {
+            raw.append(StepBuilder(
+                title: impact.nextStepTitle,
+                product: nil,
+                description: impact.nextStepDescription
             ))
         }
 
@@ -288,6 +307,20 @@ enum PoolTreatmentPlanner {
                 title: "Raise free chlorine (after metal treatment)",
                 product: chlorineProduct(cyaHigh: cyaHigh, calHigh: calHigh),
                 description: "Only raise chlorine after metal levels have been brought under control. Use liquid chlorine (sodium hypochlorite) and add slowly. Start with a partial dose and retest. Avoid cal-hypo if calcium hardness is high and avoid stabilized chlorine if CYA is high."
+            ))
+        }
+
+
+        // MARK: Step 7c – Weather sanitizer monitoring (hot/sunny)
+        if let impact = WeatherService.weatherImpact(
+            from: weatherSnapshot,
+            testType: "pool",
+            sanitizer: formData.sanitizer
+        ), weatherSnapshot?.isRaining != true {
+            raw.append(StepBuilder(
+                title: impact.nextStepTitle,
+                product: nil,
+                description: impact.nextStepDescription
             ))
         }
 

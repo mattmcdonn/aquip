@@ -78,6 +78,7 @@ struct HistoryView: View {
                     if record.testType == "spa" {
                         SpaTestResultsView(
                             formData: record.formData,
+                            weatherSnapshot: record.weatherSnapshot,
                             backAction: { selectedRecord = nil },
                             recordID: record.id,
                             headerTopPadding: 10
@@ -85,6 +86,7 @@ struct HistoryView: View {
                     } else {
                         PoolTestResultsView(
                             formData: record.formData,
+                            weatherSnapshot: record.weatherSnapshot,
                             backAction: { selectedRecord = nil },
                             recordID: record.id,
                             headerTopPadding: 10

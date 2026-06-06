@@ -9,6 +9,7 @@ struct TestHistoryRecord: Identifiable, Codable, Hashable {
     var poolName: String    // display name captured at test time
     var formData: PoolFormData
     var issueCount: Int
+    var weatherSnapshot: WeatherSnapshot?
 
     init(
         id: UUID = UUID(),
@@ -16,7 +17,8 @@ struct TestHistoryRecord: Identifiable, Codable, Hashable {
         testType: String,
         poolName: String,
         formData: PoolFormData,
-        issueCount: Int
+        issueCount: Int,
+        weatherSnapshot: WeatherSnapshot? = nil
     ) {
         self.id = id
         self.date = date
@@ -24,6 +26,7 @@ struct TestHistoryRecord: Identifiable, Codable, Hashable {
         self.poolName = poolName
         self.formData = formData
         self.issueCount = issueCount
+        self.weatherSnapshot = weatherSnapshot
     }
 }
 

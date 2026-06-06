@@ -25,6 +25,7 @@ struct TestFlowView: View {
     @State private var step: TestFlowStep = .typeSelection
     @State private var navigatingForward = true
     @State private var poolFormData: PoolFormData? = nil
+    @State private var weatherSnapshot: WeatherSnapshot? = nil
 
     // History limit flow
     @State private var pendingRecord: TestHistoryRecord? = nil
@@ -93,12 +94,16 @@ struct TestFlowView: View {
                     onCancel: { navigate(to: .typeSelection, forward: false) },
                     onComplete: { data in
                         poolFormData = data
+                        let capturedWeather = WeatherService.shared.snapshot
+                        weatherSnapshot = capturedWeather
+
                         let analysis = PoolChemistryEngine.analyze(data)
                         let record = TestHistoryRecord(
                             testType: "pool",
                             poolName: resolvedPoolName(for: data, testType: .pool),
                             formData: data,
-                            issueCount: analysis.totalIssueCount
+                            issueCount: analysis.totalIssueCount,
+                            weatherSnapshot: capturedWeather
                         )
                         navigate(to: .poolResults, forward: true)
                         saveOrPrompt(record)
@@ -110,6 +115,7 @@ struct TestFlowView: View {
                 if let data = poolFormData {
                     PoolTestResultsView(
                         formData: data,
+                        weatherSnapshot: weatherSnapshot,
                         onDone: { navigate(to: .typeSelection, forward: false) }
                     )
                     .transition(transition)
@@ -129,12 +135,16 @@ struct TestFlowView: View {
                     onCancel:   { navigate(to: .typeSelection, forward: false) },
                     onComplete: { data in
                         poolFormData = data
+                        let capturedWeather = WeatherService.shared.snapshot
+                        weatherSnapshot = capturedWeather
+
                         let analysis = SpaChemistryEngine.analyze(data)
                         let record = TestHistoryRecord(
                             testType: "spa",
                             poolName: resolvedPoolName(for: data, testType: .spa),
                             formData: data,
-                            issueCount: analysis.totalIssueCount
+                            issueCount: analysis.totalIssueCount,
+                            weatherSnapshot: capturedWeather
                         )
                         navigate(to: .spaResults, forward: true)
                         saveOrPrompt(record)
@@ -146,6 +156,7 @@ struct TestFlowView: View {
                 if let data = poolFormData {
                     SpaTestResultsView(
                         formData: data,
+                        weatherSnapshot: weatherSnapshot,
                         onDone: { navigate(to: .typeSelection, forward: false) }
                     )
                     .transition(transition)

@@ -4,7 +4,7 @@ import SwiftUI
 
 struct WeatherPillButton: View {
     var testType: String?
-    @State private var weatherService = WeatherService()
+    @State private var weatherService = WeatherService.shared
     @State private var isSheetOpen = false
     @Environment(AppSettings.self) private var settings
 
@@ -399,6 +399,7 @@ struct WeatherConditionRow: View {
 
 #Preview {
     WeatherPillButton(testType: nil)
+        .environment(WeatherService())
         .padding()
         .background(
             LinearGradient(

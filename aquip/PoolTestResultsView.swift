@@ -91,6 +91,45 @@ struct SummaryCard: View {
     }
 }
 
+
+
+// MARK: - Weather impact alert card
+
+struct WeatherImpactAlertCard: View {
+    let impact: WeatherImpactResult
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(red: 217/255, green: 119/255, blue: 6/255))
+                .frame(width: 28, height: 28)
+                .background(Color(red: 254/255, green: 243/255, blue: 199/255))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(impact.title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color(red: 120/255, green: 53/255, blue: 15/255))
+
+                Text(impact.message)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(red: 120/255, green: 53/255, blue: 15/255))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color(red: 255/255, green: 251/255, blue: 235/255))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(red: 252/255, green: 211/255, blue: 77/255), lineWidth: 1.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
 // MARK: - Animated column bar
 
 struct ColumnBar: View {
@@ -973,6 +1012,7 @@ struct DeleteTestRecordPopup: View {
 
 struct PoolTestResultsView: View {
     let formData: PoolFormData
+    var weatherSnapshot: WeatherSnapshot? = nil
     var onDone: (() -> Void)? = nil
     var backAction: (() -> Void)? = nil
     var recordID: UUID? = nil
@@ -986,6 +1026,14 @@ struct PoolTestResultsView: View {
 
     private var analysis: PoolAnalysis {
         PoolChemistryEngine.analyze(formData)
+    }
+
+    private var weatherImpact: WeatherImpactResult? {
+        WeatherService.weatherImpact(
+            from: weatherSnapshot,
+            testType: "pool",
+            sanitizer: formData.sanitizer
+        )
     }
 
     @State private var scrolledChartID: Int? = 0
@@ -1078,6 +1126,10 @@ struct PoolTestResultsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         SummaryCard(issueCount: analysis.totalIssueCount)
+
+                        if let weatherImpact {
+                            WeatherImpactAlertCard(impact: weatherImpact)
+                        }
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 24)
@@ -1135,7 +1187,11 @@ struct PoolTestResultsView: View {
                         .padding(.bottom, 20)
 
                     // ── Next steps ──
-                    let treatmentSteps = PoolTreatmentPlanner.steps(formData: formData, analysis: analysis)
+                    let treatmentSteps = PoolTreatmentPlanner.steps(
+                        formData: formData,
+                        analysis: analysis,
+                        weatherSnapshot: weatherSnapshot
+                    )
                     if !treatmentSteps.isEmpty {
                         NextStepsCard(steps: treatmentSteps)
                             .padding(.horizontal, 20)
