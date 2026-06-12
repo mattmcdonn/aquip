@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var store = WaterBodyStore()
     @State private var historyStore = TestHistoryStore()
     @State private var settings = AppSettings()
+    @State private var storeSearchService = PoolStoreSearchService()
     @State private var isInTestQuestionnaire = false
     @State private var showTestExitConfirm = false
     @State private var pendingTab: Tab? = nil
@@ -23,6 +24,7 @@ struct ContentView: View {
                 case .history:  HistoryView()
                 case .test:
                     TestFlowView(
+                        storeSearchService: storeSearchService,
                         isInQuestionnaire: $isInTestQuestionnaire,
                         shouldReset: $shouldResetTestFlow
                     )

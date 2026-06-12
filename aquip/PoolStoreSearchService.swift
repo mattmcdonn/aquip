@@ -39,7 +39,7 @@ final class PoolStoreSearchService: NSObject, CLLocationManagerDelegate {
     }
 
     func start() {
-        guard loadState != .loading else { return }
+        guard loadState == .idle else { return }
 
         switch locationManager.authorizationStatus {
         case .notDetermined:
@@ -118,10 +118,7 @@ final class PoolStoreSearchService: NSObject, CLLocationManagerDelegate {
                 let response = try await MKLocalSearch(request: request).start()
 
                 let relevantItems = response.mapItems
-                    .filter { Self.isRelevantPoolStore($0) }
-                    .sorted {
-                        Self.distance(from: userLocation, to: $0) < Self.distance(from: userLocation, to: $1)
-                    }
+                    .filter { Self.isRelevantPoolStore($0) && Self.hasPhoneNumber($0) }
                     .prefix(5)
 
                 let mappedStores = relevantItems.map { item in
@@ -151,6 +148,11 @@ final class PoolStoreSearchService: NSObject, CLLocationManagerDelegate {
                 }
             }
         }
+    }
+
+    private static func hasPhoneNumber(_ item: MKMapItem) -> Bool {
+        guard let phone = item.phoneNumber else { return false }
+        return !phone.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     private static func isRelevantPoolStore(_ item: MKMapItem) -> Bool {

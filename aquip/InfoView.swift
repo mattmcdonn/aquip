@@ -194,6 +194,7 @@ struct InfoView: View {
             }
             .background(InfoColors.pageBackground)
             .navigationBarHidden(true)
+            .ignoresSafeArea(edges: .top)
             .navigationDestination(for: InfoDestination.self) { destination in
                 switch destination {
                 case .poolChemistry:
@@ -264,8 +265,8 @@ private struct InfoHomeHeader: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
-        .padding(.top, 32)
-        .padding(.bottom, 20)
+        .padding(.top, 72)
+        .padding(.bottom, 32)
         .background(
             LinearGradient(
                 colors: [
@@ -275,7 +276,6 @@ private struct InfoHomeHeader: View {
                 startPoint: .leading,
                 endPoint: .trailing
             )
-            .ignoresSafeArea(edges: .top)
         )
     }
 }
@@ -360,6 +360,7 @@ private struct InfoSectionPage: View {
         .background(InfoColors.pageBackground)
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
+        .ignoresSafeArea(edges: .top)
     }
 
     private var horizontalPills: some View {
@@ -499,6 +500,7 @@ private struct InfoArticlePage: View {
         .background(InfoColors.pageBackground)
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
+        .ignoresSafeArea(edges: .top)
     }
 }
 
@@ -535,11 +537,10 @@ private struct CompactInfoHeader: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
-        .padding(.top, 32)
-        .padding(.bottom, 18)
+        .padding(.top, 72)
+        .padding(.bottom, 28)
         .background(
             LinearGradient(colors: theme.gradient, startPoint: .leading, endPoint: .trailing)
-                .ignoresSafeArea(edges: .top)
         )
     }
 }

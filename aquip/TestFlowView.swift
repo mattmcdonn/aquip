@@ -16,12 +16,12 @@ enum TestFlowStep {
 }
 
 struct TestFlowView: View {
+    var storeSearchService: PoolStoreSearchService
     @Binding var isInQuestionnaire: Bool
     @Binding var shouldReset: Bool
 
     @Environment(TestHistoryStore.self) private var historyStore
     @Environment(WaterBodyStore.self) private var waterBodyStore
-
     @State private var step: TestFlowStep = .typeSelection
     @State private var navigatingForward = true
     @State private var poolFormData: PoolFormData? = nil
@@ -71,7 +71,7 @@ struct TestFlowView: View {
         ZStack {
             switch step {
             case .typeSelection:
-                TestTypeSelectionView(onSelect: { type in
+                TestTypeSelectionView(storeSearchService: storeSearchService, onSelect: { type in
                     if type == "pool" {
                         navigate(to: .poolInstructions, forward: true)
                     } else if type == "spa" {

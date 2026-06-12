@@ -2,9 +2,8 @@ import SwiftUI
 import MapKit
 
 struct TestTypeSelectionView: View {
+    var storeSearchService: PoolStoreSearchService
     var onSelect: (String) -> Void
-
-    @State private var storeSearchService = PoolStoreSearchService()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -312,5 +311,5 @@ struct PoolStoreMetaPill: View {
 }
 
 #Preview {
-    TestTypeSelectionView(onSelect: { _ in })
+    TestTypeSelectionView(storeSearchService: PoolStoreSearchService(), onSelect: { _ in })
 }

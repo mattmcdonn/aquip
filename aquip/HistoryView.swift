@@ -20,7 +20,7 @@ struct HistoryView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
-                .padding(.top, 20)
+                .padding(.top, 72)
                 .padding(.bottom, 32)
                 .background(
                     LinearGradient(
@@ -31,7 +31,6 @@ struct HistoryView: View {
                         startPoint: .leading,
                         endPoint: .trailing
                     )
-                    .ignoresSafeArea(edges: .top)
                 )
 
                 if historyStore.records.isEmpty {
@@ -73,6 +72,7 @@ struct HistoryView: View {
             }
             .background(Color.white)
             .navigationBarHidden(true)
+            .ignoresSafeArea(edges: .top)
             .navigationDestination(item: $selectedRecord) { record in
                 Group {
                     if record.testType == "spa" {
