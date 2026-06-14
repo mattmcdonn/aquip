@@ -81,6 +81,7 @@ struct TestTypeSelectionView: View {
                     }
 
                     NearbyPoolStoresSection(service: storeSearchService)
+                        .padding(.top, 12)
                 }
                 .padding(24)
                 .padding(.bottom, 110)

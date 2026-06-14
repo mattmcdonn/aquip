@@ -156,66 +156,31 @@ final class PoolStoreSearchService: NSObject, CLLocationManagerDelegate {
     }
 
     private static func isRelevantPoolStore(_ item: MKMapItem) -> Bool {
-        let haystack = [
-            item.name,
-            item.placemark.title,
-            item.phoneNumber,
-            item.url?.absoluteString
-        ]
-        .compactMap { $0?.lowercased() }
-        .joined(separator: " ")
+        let name = item.name?.lowercased() ?? ""
+        let phone = item.phoneNumber?.lowercased() ?? ""
+        let url = item.url?.absoluteString.lowercased() ?? ""
+        let haystack = "\(name) \(phone) \(url)"
 
-        let keywords = [
-            "pool",
-            "pools",
-            "spa",
-            "spas",
-            "hot tub",
-            "hottub",
-            "swimming",
-            "water care",
-            "pool supply",
-            "pool supplies"
+        let keywords: [String] = [
+            "pool", "pools", "spa", "spas", "hot tub", "hottub",
+            "swimming", "water care", "pool supply", "pool supplies"
         ]
-
         return keywords.contains { haystack.contains($0) }
     }
 
     private static func addressText(for item: MKMapItem) -> String {
-        let placemark = item.placemark
-
-        let parts = [
-            placemark.subThoroughfare,
-            placemark.thoroughfare,
-            placemark.locality,
-            placemark.administrativeArea
-        ]
-        .compactMap { value -> String? in
-            guard let value, !value.isEmpty else { return nil }
-            return value
+        if let reps = item.addressRepresentations {
+            return reps.fullAddress(includingRegion: false, singleLine: true) ?? item.name ?? "Address unavailable"
         }
-
-        if !parts.isEmpty {
-            return parts.joined(separator: ", ")
-        }
-
-        return placemark.title ?? "Address unavailable"
-    }
-
-    private static func distance(from userLocation: CLLocation, to item: MKMapItem) -> CLLocationDistance {
-        let coordinate = item.placemark.coordinate
-        let storeLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        return userLocation.distance(from: storeLocation)
+        return item.name ?? "Address unavailable"
     }
 
     private static func distanceText(from userLocation: CLLocation, to item: MKMapItem) -> String {
-        let meters = distance(from: userLocation, to: item)
+        let meters = userLocation.distance(from: item.location)
         let kilometers = meters / 1000
-
         if kilometers < 1 {
             return "\(Int(meters.rounded())) m away"
         }
-
         return String(format: "%.1f km away", kilometers)
     }
 }
