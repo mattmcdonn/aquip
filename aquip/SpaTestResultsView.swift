@@ -163,22 +163,6 @@ struct SpaTestResultsView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 20)
 
-                        // ── Next steps ──
-                        let treatmentSteps = SpaTreatmentPlanner.steps(
-                            formData: formData,
-                            analysis: analysis,
-                            weatherSnapshot: weatherSnapshot
-                        )
-                        if !treatmentSteps.isEmpty {
-                            NextStepsCard(
-                                steps: treatmentSteps,
-                                headerGradient: theme.gradient,
-                                badgeGradient: theme.badgeGradient,
-                                accent: theme.accent,
-                                accentSoft: theme.accentSoft
-                            )
-                            .padding(.horizontal, 20)
-                        }
                         Color.clear.frame(height: 120)
                     }
                 }

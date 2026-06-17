@@ -1233,16 +1233,6 @@ struct PoolTestResultsView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
 
-                    // ── Next steps ──
-                    let treatmentSteps = PoolTreatmentPlanner.steps(
-                        formData: formData,
-                        analysis: analysis,
-                        weatherSnapshot: weatherSnapshot
-                    )
-                    if !treatmentSteps.isEmpty {
-                        NextStepsCard(steps: treatmentSteps)
-                            .padding(.horizontal, 20)
-                    }
                     // Bottom spacer so content clears the tab bar
                     Color.clear.frame(height: 120)
                 }
@@ -1356,5 +1346,242 @@ struct DoneViewingConfirmPopup: View {
             .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
             .padding(.horizontal, 40)
         }
+    }
+}
+
+// MARK: - My Products section
+
+struct MyProductsSection: View {
+    @Environment(PoolProductStore.self) private var productStore
+    @State private var selectedType: PoolProductType? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("My Products")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 12) {
+                ForEach(PoolProductType.allCases) { type in
+                    MyProductCard(type: type, product: productStore.product(for: type)) {
+                        selectedType = type
+                    }
+                }
+            }
+        }
+        .sheet(item: $selectedType) { type in
+            ProductConfigView(type: type)
+        }
+    }
+}
+
+// MARK: - My product card
+
+private struct MyProductCard: View {
+    let type: PoolProductType
+    let product: PoolProduct
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                Image(systemName: type.icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(type.iconColor)
+                    .frame(width: 48, height: 48)
+                    .background(type.iconBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(type.displayName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
+                    if product.isConfigured {
+                        Text(product.name)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                            .lineLimit(1)
+                    } else {
+                        Text("Not configured")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color(red: 156/255, green: 163/255, blue: 175/255))
+                            .italic()
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(red: 209/255, green: 213/255, blue: 219/255))
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Product config view
+
+struct ProductConfigView: View {
+    let type: PoolProductType
+    @Environment(PoolProductStore.self) private var productStore
+    @Environment(AppSettings.self) private var settings
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name = ""
+    @State private var amountText = ""
+    @State private var perVolumeText = ""
+    @State private var changeByText = ""
+
+    private var weightUnit: String { settings.productWeightUnitLabel }
+    private var volumeUnit: String { settings.volumeUnitLabel }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    Image(systemName: type.icon)
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(type.iconColor)
+                        .frame(width: 80, height: 80)
+                        .background(type.iconBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        fieldLabel("Product Name")
+                        TextField("e.g. BioGuard Balance Pak", text: $name)
+                            .font(.system(size: 16))
+                            .padding(14)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(red: 229/255, green: 231/255, blue: 235/255), lineWidth: 1)
+                            )
+                    }
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        fieldLabel("Dosage Formula")
+                        VStack(spacing: 14) {
+                            dosageRow(
+                                label: "Amount of product",
+                                text: $amountText,
+                                unit: weightUnit
+                            )
+                            dosageRow(
+                                label: "Per volume of water",
+                                text: $perVolumeText,
+                                unit: volumeUnit
+                            )
+                            dosageRow(
+                                label: "To \(type.direction) \(type.parameterName) by",
+                                text: $changeByText,
+                                unit: type.changeUnit
+                            )
+                        }
+                        .padding(16)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+                    }
+                }
+                .padding(20)
+            }
+            .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+            .navigationTitle(type.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save(); dismiss() }
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+        .onAppear { loadExisting() }
+    }
+
+    @ViewBuilder
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+    }
+
+    @ViewBuilder
+    private func dosageRow(label: String, text: Binding<String>, unit: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 14))
+                .foregroundStyle(Color(red: 55/255, green: 65/255, blue: 81/255))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                TextField("0", text: text)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(size: 15, weight: .medium))
+                    .frame(width: 80)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(red: 229/255, green: 231/255, blue: 235/255), lineWidth: 1)
+                    )
+                Text(unit)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                    .frame(minWidth: 40, alignment: .leading)
+            }
+        }
+    }
+
+    private func loadExisting() {
+        let p = productStore.product(for: type)
+        name = p.name
+        if p.amountGrams > 0 {
+            let val = settings.productWeightUnit == "imperial" ? p.amountGrams / 28.3495 : p.amountGrams
+            amountText = formatNum(val)
+        }
+        if p.perLiters > 0 {
+            let val = settings.volumeUnit == "gallons" ? p.perLiters / 3.78541 : p.perLiters
+            perVolumeText = formatNum(val)
+        }
+        if p.toChangeBy > 0 {
+            changeByText = formatNum(p.toChangeBy)
+        }
+    }
+
+    private func save() {
+        let amountVal   = Double(amountText.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let perVol      = Double(perVolumeText.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let changeBy    = Double(changeByText.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let amountGrams = settings.productWeightUnit == "imperial" ? amountVal * 28.3495 : amountVal
+        let perLiters   = settings.volumeUnit == "gallons" ? perVol * 3.78541 : perVol
+        productStore.setProduct(
+            PoolProduct(
+                name: name.trimmingCharacters(in: .whitespaces),
+                amountGrams: amountGrams,
+                perLiters: perLiters,
+                toChangeBy: changeBy
+            ),
+            for: type
+        )
+    }
+
+    private func formatNum(_ v: Double) -> String {
+        v.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(v))" : String(format: "%.2f", v)
     }
 }

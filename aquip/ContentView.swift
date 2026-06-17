@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var store = WaterBodyStore()
     @State private var historyStore = TestHistoryStore()
     @State private var settings = AppSettings()
+    @State private var productStore = PoolProductStore()
     @State private var storeSearchService = PoolStoreSearchService()
     @State private var isInTestQuestionnaire = false
     @State private var showTestExitConfirm = false
@@ -90,6 +91,7 @@ struct ContentView: View {
         .environment(store)
         .environment(historyStore)
         .environment(settings)
+        .environment(productStore)
         .onAppear {
             if !settings.hasAgreedToTerms {
                 showTermsPopup = true

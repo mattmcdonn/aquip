@@ -244,6 +244,7 @@ struct SettingsView: View {
 
     @State private var showTempUnit = false
     @State private var showVolumeUnit = false
+    @State private var showProductWeightUnit = false
     @State private var showTerms = false
 
     private let gradient = LinearGradient(
@@ -272,6 +273,14 @@ struct SettingsView: View {
                 .zIndex(1)
             }
 
+            if showProductWeightUnit {
+                ProductWeightUnitView(onBack: {
+                    withAnimation(.easeInOut(duration: 0.3)) { showProductWeightUnit = false }
+                })
+                .transition(.move(edge: .trailing))
+                .zIndex(1)
+            }
+
             if showTerms {
                 TermsAndConditionsView(onBack: {
                     withAnimation(.easeInOut(duration: 0.3)) { showTerms = false }
@@ -282,6 +291,7 @@ struct SettingsView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: showTempUnit)
         .animation(.easeInOut(duration: 0.3), value: showVolumeUnit)
+        .animation(.easeInOut(duration: 0.3), value: showProductWeightUnit)
         .animation(.easeInOut(duration: 0.3), value: showTerms)
     }
 
@@ -330,6 +340,18 @@ struct SettingsView: View {
                             ) {
                                 withAnimation(.easeInOut(duration: 0.3)) { showVolumeUnit = true }
                             }
+
+                            Divider().padding(.leading, 72)
+
+                            SettingRow(
+                                icon: "scalemass.fill",
+                                iconColor: Color(red: 22/255, green: 163/255, blue: 74/255),
+                                iconBg: Color(red: 220/255, green: 252/255, blue: 231/255),
+                                title: "Product Weight Unit",
+                                detail: settings.productWeightUnit == "metric" ? "Metric (g)" : "Imperial (oz)"
+                            ) {
+                                withAnimation(.easeInOut(duration: 0.3)) { showProductWeightUnit = true }
+                            }
                         }
                         .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -373,6 +395,92 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
             .padding(.bottom, 8)
+    }
+}
+
+// MARK: - Product weight unit subpage
+
+private struct ProductWeightUnitView: View {
+    @Environment(AppSettings.self) private var settings
+    var onBack: () -> Void
+
+    private let gradient = LinearGradient(
+        colors: [Color(red: 37/255, green: 99/255, blue: 235/255),
+                 Color(red: 6/255, green: 182/255, blue: 212/255)],
+        startPoint: .leading, endPoint: .trailing
+    )
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Button(action: onBack) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
+                            Text("Back").font(.system(size: 15))
+                        }
+                        .foregroundStyle(.white.opacity(0.9))
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                .padding(.bottom, 14)
+                Text("Product Weight Unit")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(.white)
+                Text("Choose how product amounts are entered")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 72)
+            .padding(.bottom, 28)
+            .background(gradient)
+
+            VStack(spacing: 0) {
+                optionRow(label: "Metric (g)", subtitle: "Enter amounts in grams", value: "metric")
+                Divider().padding(.leading, 60)
+                optionRow(label: "Imperial (oz)", subtitle: "Enter amounts in ounces", value: "imperial")
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+            .padding(20)
+
+            Spacer()
+        }
+        .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+    }
+
+    @ViewBuilder
+    private func optionRow(label: String, subtitle: String, value: String) -> some View {
+        Button {
+            settings.productWeightUnit = value
+            settings.save()
+        } label: {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+                    Text(subtitle)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                }
+                Spacer()
+                if settings.productWeightUnit == value {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

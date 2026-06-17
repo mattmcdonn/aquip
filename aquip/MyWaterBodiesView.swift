@@ -443,52 +443,62 @@ struct MyWaterBodiesView: View {
                 )
             )
 
-            if store.bodies.isEmpty {
-                emptyState
-            } else {
-                ScrollView {
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Pool / Spa cards (or inline empty state)
                     VStack(spacing: 12) {
-                        ForEach(store.bodies) { entry in
-                            WaterBodyCard(waterBody: entry) {
-                                viewingBodyID = entry.id
-                                withAnimation(.easeInOut(duration: 0.3)) { showingDetail = true }
+                        if store.bodies.isEmpty {
+                            poolsEmptyState
+                        } else {
+                            ForEach(store.bodies) { entry in
+                                WaterBodyCard(waterBody: entry) {
+                                    viewingBodyID = entry.id
+                                    withAnimation(.easeInOut(duration: 0.3)) { showingDetail = true }
+                                }
                             }
                         }
                     }
-                    .padding(24)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
                     .padding(.bottom, 24)
+
+                    // My Products
+                    Divider()
+                        .padding(.horizontal, 24)
+                    MyProductsSection()
+                        .padding(.horizontal, 24)
+                        .padding(.top, 20)
+                        .padding(.bottom, 20)
+
+                    Color.clear.frame(height: 80)
                 }
-                .safeAreaInset(edge: .bottom) {
-                    Color.clear.frame(height: 90)
-                }
-                .background(Color(red: 249/255, green: 250/255, blue: 251/255))
             }
+            .background(Color(red: 249/255, green: 250/255, blue: 251/255))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.white)
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
+    private var poolsEmptyState: some View {
+        VStack(spacing: 12) {
             Image(systemName: "drop.circle.fill")
-                .font(.system(size: 44))
+                .font(.system(size: 36))
                 .foregroundStyle(Color(red: 37/255, green: 99/255, blue: 235/255))
-                .frame(width: 88, height: 88)
+                .frame(width: 72, height: 72)
                 .background(Color(red: 219/255, green: 234/255, blue: 254/255))
                 .clipShape(Circle())
 
             Text("No Pools or Spas")
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(Color(red: 31/255, green: 41/255, blue: 55/255))
 
-            Text("You haven't added any pools or spas yet. Tap the + button in the top right corner to add your first one.")
-                .font(.system(size: 15))
+            Text("Tap the + button above to add your first pool or spa.")
+                .font(.system(size: 14))
                 .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 280)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+        .padding(.vertical, 28)
+        .frame(maxWidth: .infinity)
     }
 }
 

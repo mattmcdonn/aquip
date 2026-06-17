@@ -179,5 +179,7 @@ private struct TestHistoryCard: View {
 #Preview {
     HistoryView()
         .environment(TestHistoryStore())
+        .environment(PoolProductStore())
+        .environment(AppSettings())
 }
 

@@ -31,11 +31,17 @@ final class PoolStoreSearchService: NSObject, CLLocationManagerDelegate {
 
     private let locationManager = CLLocationManager()
     private var hasRequestedSearch = false
+    private var searchTask: Task<Void, Never>?
 
     override init() {
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
+    }
+
+    deinit {
+        searchTask?.cancel()
+        locationManager.delegate = nil
     }
 
     func start() {
@@ -105,7 +111,8 @@ final class PoolStoreSearchService: NSObject, CLLocationManagerDelegate {
     // MARK: - Search
 
     private func searchNearbyStores(from userLocation: CLLocation) {
-        Task {
+        searchTask?.cancel()
+        searchTask = Task { [weak self] in
             do {
                 let request = MKLocalSearch.Request()
                 request.naturalLanguageQuery = "pool supply store"
@@ -117,31 +124,35 @@ final class PoolStoreSearchService: NSObject, CLLocationManagerDelegate {
 
                 let response = try await MKLocalSearch(request: request).start()
 
-                let relevantItems = response.mapItems
+                // Check after the await — self may have been freed while the search ran.
+                guard !Task.isCancelled else { return }
+                let mappedStores = Array(response.mapItems
                     .filter { Self.isRelevantPoolStore($0) && Self.hasPhoneNumber($0) }
                     .prefix(5)
+                    .map { item in
+                        PoolStoreLocation(
+                            name: item.name ?? "Pool Store",
+                            address: Self.addressText(for: item),
+                            distanceText: Self.distanceText(from: userLocation, to: item),
+                            mapItem: item
+                        )
+                    })
 
-                let mappedStores = relevantItems.map { item in
-                    PoolStoreLocation(
-                        name: item.name ?? "Pool Store",
-                        address: Self.addressText(for: item),
-                        distanceText: Self.distanceText(from: userLocation, to: item),
-                        mapItem: item
-                    )
-                }
-
-                await MainActor.run {
-                    self.stores = Array(mappedStores)
-                    if self.stores.isEmpty {
+                await MainActor.run { [weak self] in
+                    guard let self, !Task.isCancelled else { return }
+                    self.stores = mappedStores
+                    if mappedStores.isEmpty {
                         self.loadState = .unavailable
-                        self.message = "No relevant nearby pool stores were found. Try searching in Maps for “pool supply store” or check your location/internet settings."
+                        self.message = "No relevant nearby pool stores were found. Try searching in Maps for \"pool supply store\" or check your location/internet settings."
                     } else {
                         self.loadState = .available
                         self.message = ""
                     }
                 }
             } catch {
-                await MainActor.run {
+                guard !Task.isCancelled else { return }
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
                     self.stores = []
                     self.loadState = .unavailable
                     self.message = "No nearby stores could be listed. Check your location settings or internet connection."

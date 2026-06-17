@@ -11,6 +11,9 @@ class AppSettings {
     // "litres" or "gallons"  — default litres
     var volumeUnit: String = "litres"
 
+    // "metric" (grams) or "imperial" (ounces) — default metric
+    var productWeightUnit: String = "metric"
+
     // Whether the user has agreed to the Terms & Conditions
     var hasAgreedToTerms: Bool = false
 
@@ -23,6 +26,7 @@ class AppSettings {
     private struct Stored: Codable {
         var temperatureUnit: String
         var volumeUnit: String
+        var productWeightUnit: String?
         var hasAgreedToTerms: Bool
     }
 
@@ -30,6 +34,7 @@ class AppSettings {
         let s = Stored(
             temperatureUnit: temperatureUnit,
             volumeUnit: volumeUnit,
+            productWeightUnit: productWeightUnit,
             hasAgreedToTerms: hasAgreedToTerms
         )
         guard let data = try? JSONEncoder().encode(s) else { return }
@@ -41,9 +46,10 @@ class AppSettings {
             let data = UserDefaults.standard.data(forKey: storageKey),
             let decoded = try? JSONDecoder().decode(Stored.self, from: data)
         else { return }
-        temperatureUnit = decoded.temperatureUnit
-        volumeUnit      = decoded.volumeUnit
-        hasAgreedToTerms = decoded.hasAgreedToTerms
+        temperatureUnit   = decoded.temperatureUnit
+        volumeUnit        = decoded.volumeUnit
+        productWeightUnit = decoded.productWeightUnit ?? "metric"
+        hasAgreedToTerms  = decoded.hasAgreedToTerms
     }
 
     // MARK: - Temperature helpers
@@ -61,6 +67,12 @@ class AppSettings {
         } else {
             return "\(Int(celsius.rounded()))°"
         }
+    }
+
+    // MARK: - Product weight helpers
+
+    var productWeightUnitLabel: String {
+        productWeightUnit == "imperial" ? "oz" : "g"
     }
 
     // MARK: - Volume helpers
