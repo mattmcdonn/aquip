@@ -1233,6 +1233,17 @@ struct PoolTestResultsView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
 
+                    // ── Next steps ──
+                    let treatmentSteps = PoolTreatmentPlanner.steps(
+                        formData: formData,
+                        analysis: analysis,
+                        weatherSnapshot: weatherSnapshot
+                    )
+                    if !treatmentSteps.isEmpty {
+                        NextStepsCard(steps: treatmentSteps)
+                            .padding(.horizontal, 20)
+                    }
+
                     // Bottom spacer so content clears the tab bar
                     Color.clear.frame(height: 120)
                 }
@@ -1352,8 +1363,8 @@ struct DoneViewingConfirmPopup: View {
 // MARK: - My Products section
 
 struct MyProductsSection: View {
+    var onSelect: (PoolProductType) -> Void
     @Environment(PoolProductStore.self) private var productStore
-    @State private var selectedType: PoolProductType? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1365,13 +1376,10 @@ struct MyProductsSection: View {
             VStack(spacing: 12) {
                 ForEach(PoolProductType.allCases) { type in
                     MyProductCard(type: type, product: productStore.product(for: type)) {
-                        selectedType = type
+                        onSelect(type)
                     }
                 }
             }
-        }
-        .sheet(item: $selectedType) { type in
-            ProductConfigView(type: type)
         }
     }
 }
@@ -1426,96 +1434,353 @@ private struct MyProductCard: View {
     }
 }
 
+// MARK: - Product info row
+
+private struct ProductInfoRow: View {
+    let icon: String
+    let iconColor: Color
+    let iconBg: Color
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundStyle(iconColor)
+                .frame(width: 46, height: 46)
+                .background(iconBg)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
+                Text(value)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+            }
+
+            Spacer()
+        }
+        .padding(16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+    }
+}
+
 // MARK: - Product config view
 
 struct ProductConfigView: View {
     let type: PoolProductType
+    var onBack: () -> Void
     @Environment(PoolProductStore.self) private var productStore
     @Environment(AppSettings.self) private var settings
-    @Environment(\.dismiss) private var dismiss
+
+    @State private var showingEdit = false
+
+    private var product: PoolProduct { productStore.product(for: type) }
+
+    private let gradient = LinearGradient(
+        colors: [
+            Color(red: 37/255, green: 99/255, blue: 235/255),
+            Color(red: 6/255, green: 182/255, blue: 212/255)
+        ],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+
+    var body: some View {
+        ZStack {
+            detailContent
+
+            if showingEdit {
+                ProductEditView(
+                    type: type,
+                    onDone: {
+                        withAnimation(.easeInOut(duration: 0.3)) { showingEdit = false }
+                    }
+                )
+                .transition(.move(edge: .trailing))
+                .zIndex(1)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showingEdit)
+    }
+
+    private var detailContent: some View {
+        VStack(spacing: 0) {
+            // Gradient header
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Button(action: onBack) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Back")
+                                .font(.system(size: 15))
+                        }
+                        .foregroundStyle(.white.opacity(0.9))
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) { showingEdit = true }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Edit")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(0.22))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 20)
+
+                HStack(spacing: 16) {
+                    Image(systemName: type.icon)
+                        .font(.system(size: 26))
+                        .foregroundStyle(.white)
+                        .frame(width: 60, height: 60)
+                        .background(Color.white.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(type.displayName)
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text(type.subtitle)
+                            .font(.system(size: 15))
+                            .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 72)
+            .padding(.bottom, 28)
+            .background(gradient)
+
+            // Info rows
+            ScrollView {
+                VStack(spacing: 12) {
+                    ProductInfoRow(
+                        icon: "tag.fill",
+                        iconColor: type.iconColor,
+                        iconBg: type.iconBackground,
+                        label: "Product Name",
+                        value: product.isConfigured ? product.name : "Not configured"
+                    )
+                    ProductInfoRow(
+                        icon: "scalemass.fill",
+                        iconColor: Color(red: 5/255, green: 150/255, blue: 105/255),
+                        iconBg: Color(red: 209/255, green: 250/255, blue: 229/255),
+                        label: "Amount",
+                        value: amountDisplayValue
+                    )
+                    ProductInfoRow(
+                        icon: "drop.fill",
+                        iconColor: Color(red: 37/255, green: 99/255, blue: 235/255),
+                        iconBg: Color(red: 219/255, green: 234/255, blue: 254/255),
+                        label: "Per Volume",
+                        value: perVolumeDisplayValue
+                    )
+                    ProductInfoRow(
+                        icon: "arrow.up.arrow.down",
+                        iconColor: Color(red: 217/255, green: 119/255, blue: 6/255),
+                        iconBg: Color(red: 254/255, green: 243/255, blue: 199/255),
+                        label: "\(type.direction.capitalized) \(type.parameterName) by",
+                        value: changeByDisplayValue
+                    )
+                }
+                .padding(24)
+                .padding(.bottom, 100)
+            }
+            .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+        }
+        .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+    }
+
+    private var amountDisplayValue: String {
+        guard product.amountGrams > 0 else { return "—" }
+        let val = settings.productWeightUnit == "imperial" ? product.amountGrams / 28.3495 : product.amountGrams
+        return "\(formatNum(val)) \(settings.productWeightUnitLabel)"
+    }
+
+    private var perVolumeDisplayValue: String {
+        guard product.perLiters > 0 else { return "—" }
+        let val = settings.volumeUnit == "gallons" ? product.perLiters / 3.78541 : product.perLiters
+        return "\(formatNum(val)) \(settings.volumeUnitLabel)"
+    }
+
+    private var changeByDisplayValue: String {
+        guard product.toChangeBy > 0 else { return "—" }
+        return "\(formatNum(product.toChangeBy)) \(type.changeUnit)"
+    }
+
+    private func formatNum(_ v: Double) -> String {
+        v.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(v))" : String(format: "%.2f", v)
+    }
+}
+
+// MARK: - Product edit view
+
+struct ProductEditView: View {
+    let type: PoolProductType
+    var onDone: () -> Void
+    @Environment(PoolProductStore.self) private var productStore
+    @Environment(AppSettings.self) private var settings
 
     @State private var name = ""
     @State private var amountText = ""
     @State private var perVolumeText = ""
     @State private var changeByText = ""
+    @State private var keyboardHeight: CGFloat = 0
 
     private var weightUnit: String { settings.productWeightUnitLabel }
     private var volumeUnit: String { settings.volumeUnitLabel }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    Image(systemName: type.icon)
-                        .font(.system(size: 32, weight: .semibold))
-                        .foregroundStyle(type.iconColor)
-                        .frame(width: 80, height: 80)
-                        .background(type.iconBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        fieldLabel("Product Name")
-                        TextField("e.g. BioGuard Balance Pak", text: $name)
-                            .font(.system(size: 16))
-                            .padding(14)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(red: 229/255, green: 231/255, blue: 235/255), lineWidth: 1)
-                            )
-                    }
-
-                    VStack(alignment: .leading, spacing: 14) {
-                        fieldLabel("Dosage Formula")
-                        VStack(spacing: 14) {
-                            dosageRow(
-                                label: "Amount of product",
-                                text: $amountText,
-                                unit: weightUnit
-                            )
-                            dosageRow(
-                                label: "Per volume of water",
-                                text: $perVolumeText,
-                                unit: volumeUnit
-                            )
-                            dosageRow(
-                                label: "To \(type.direction) \(type.parameterName) by",
-                                text: $changeByText,
-                                unit: type.changeUnit
-                            )
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                // Gradient header
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Button(action: onDone) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Back")
+                                    .font(.system(size: 15))
+                            }
+                            .foregroundStyle(.white.opacity(0.9))
                         }
-                        .padding(16)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+                        .buttonStyle(.plain)
+
+                        Spacer()
                     }
+                    .padding(.bottom, 14)
+
+                    Text("Edit \(type.displayName)")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Update your product details")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color(red: 219/255, green: 234/255, blue: 254/255))
+                        .padding(.top, 4)
                 }
-                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.top, 72)
+                .padding(.bottom, 28)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 37/255, green: 99/255, blue: 235/255),
+                            Color(red: 6/255, green: 182/255, blue: 212/255)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            FormSectionLabel(text: "Product Name")
+                            TextField("e.g. BioGuard Balance Pak", text: $name)
+                                .font(.system(size: 16))
+                                .foregroundStyle(Color(red: 17/255, green: 24/255, blue: 39/255))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .background(Color.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color(red: 209/255, green: 213/255, blue: 219/255), lineWidth: 1.5)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+
+                        VStack(alignment: .leading, spacing: 14) {
+                            FormSectionLabel(text: "Dosage Formula")
+                            VStack(spacing: 14) {
+                                dosageRow(
+                                    label: "Amount of product",
+                                    text: $amountText,
+                                    unit: weightUnit
+                                )
+                                dosageRow(
+                                    label: "Per volume of water",
+                                    text: $perVolumeText,
+                                    unit: volumeUnit
+                                )
+                                dosageRow(
+                                    label: "To \(type.direction) \(type.parameterName) by",
+                                    text: $changeByText,
+                                    unit: type.changeUnit
+                                )
+                            }
+                            .padding(16)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+                        }
+                    }
+                    .padding(24)
+                    .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + 180 : 180)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .background(Color(red: 249/255, green: 250/255, blue: 251/255))
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+                    guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                    withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = frame.height }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                    withAnimation(.easeOut(duration: 0.15)) { keyboardHeight = 0 }
+                }
             }
             .background(Color(red: 249/255, green: 250/255, blue: 251/255))
-            .navigationTitle(type.displayName)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+
+            // Save button
+            VStack(spacing: 0) {
+                Button {
+                    save()
+                    onDone()
+                } label: {
+                    Text("Save Changes")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 37/255, green: 99/255, blue: 235/255),
+                                    Color(red: 6/255, green: 182/255, blue: 212/255)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save(); dismiss() }
-                        .fontWeight(.semibold)
-                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .padding(.bottom, 100)
             }
+            .background(Color.white)
         }
         .onAppear { loadExisting() }
-    }
-
-    @ViewBuilder
-    private func fieldLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color(red: 107/255, green: 114/255, blue: 128/255))
     }
 
     @ViewBuilder

@@ -359,6 +359,7 @@ struct MyWaterBodiesView: View {
     @State private var showingDetail = false
     @State private var viewingBodyID: UUID? = nil
     @State private var showLimitAlert = false
+    @State private var selectedProductType: PoolProductType? = nil
 
     var body: some View {
         ZStack {
@@ -387,6 +388,17 @@ struct MyWaterBodiesView: View {
                 .zIndex(1)
             }
 
+            if let type = selectedProductType {
+                ProductConfigView(
+                    type: type,
+                    onBack: {
+                        withAnimation(.easeInOut(duration: 0.3)) { selectedProductType = nil }
+                    }
+                )
+                .transition(.move(edge: .trailing))
+                .zIndex(1)
+            }
+
             if showLimitAlert {
                 LimitReachedPopup(isPresented: $showLimitAlert)
                     .zIndex(2)
@@ -395,6 +407,7 @@ struct MyWaterBodiesView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: showingDetail)
         .animation(.easeInOut(duration: 0.3), value: showingAddForm)
+        .animation(.easeInOut(duration: 0.3), value: selectedProductType)
         .animation(.easeOut(duration: 0.2), value: showLimitAlert)
     }
 
@@ -465,10 +478,14 @@ struct MyWaterBodiesView: View {
                     // My Products
                     Divider()
                         .padding(.horizontal, 24)
-                    MyProductsSection()
-                        .padding(.horizontal, 24)
-                        .padding(.top, 20)
-                        .padding(.bottom, 20)
+                    MyProductsSection { type in
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            selectedProductType = type
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 20)
+                    .padding(.bottom, 20)
 
                     Color.clear.frame(height: 80)
                 }
